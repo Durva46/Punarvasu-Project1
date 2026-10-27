@@ -197,15 +197,19 @@ export const MediaPage: React.FC = () => {
     const refillsKey = "labflow_media_refills";
     const refills: Record<string, number> = JSON.parse(localStorage.getItem(refillsKey) || "{}");
 
-    // Chronological simulation of all dates up to currentDay to carry forward balances accurately
+    // ─────────────────────────────────────────────────────────────────────────
+    // SEQUENTIAL CASCADE LEDGER (as shown in user specification):
+    //
+    // The very 1st media starts with initial Opening Balance = 500.00 gm (+ user refills).
+    // Row 1: Opening = 500.00,  Qty Used = 16.20,  Balance = 500.00 - 16.20 = 483.80
+    // Row 2: Opening = 483.80 (from previous media's balance), Qty Used = 4.80, Balance = 483.80 - 4.80 = 479.00
+    // Row 3: Opening = 479.00 (from previous media's balance), ...
+    //
+    // When moving to the next day:
+    // Next day's 1st media Opening Balance = Previous day's final media Balance!
+    // ─────────────────────────────────────────────────────────────────────────
     const sortedDays = [...availableDays].sort((a, b) => a.date.localeCompare(b.date));
-    const runningBalances: Record<string, number> = {};
-
-    // Initialize all media with 500 gm + any manual refills
-    MEDIA_REGISTRY.forEach((m) => {
-      runningBalances[m.id] = (refills[m.id] || 0) + 500.0;
-    });
-    runningBalances[R2A_DEF.id] = (refills[R2A_DEF.id] || 0) + 500.0;
+    let currentPoolBalance = 500.0 + (refills["global_pool"] || 0);
 
     let targetRows: PreparedRow[] = [];
     let detectedDeficit: typeof blockingShortfall = null;
@@ -249,7 +253,7 @@ export const MediaPage: React.FC = () => {
 
         // Calculate quantity used (gm) = number of tubes * factor
         const qtyUsed = parseFloat((tubes * m.factor).toFixed(2));
-        const opening = parseFloat((runningBalances[m.id] ?? 500.0).toFixed(2));
+        const opening = parseFloat(currentPoolBalance.toFixed(2));
         const balance = parseFloat((opening - qtyUsed).toFixed(2));
 
         const isNegative = balance < 0;
@@ -265,8 +269,8 @@ export const MediaPage: React.FC = () => {
           };
         }
 
-        // Update running balance (capped at 0 or allowed negative for calculation)
-        runningBalances[m.id] = balance;
+        // The calculated balance cascades as the Opening Balance for the NEXT media row!
+        currentPoolBalance = balance;
 
         if (d.date === currentDay.date) {
           dayRows.push({
@@ -291,21 +295,22 @@ export const MediaPage: React.FC = () => {
       }
     }
 
-    setMediaLedger(runningBalances);
+    setMediaLedger({ global_pool: currentPoolBalance });
     setMediaRows(targetRows);
     setBlockingShortfall(detectedDeficit);
   }, [availableDays, selectedDateIso, selectedStaff]);
 
   // Handle refill 500gm when balance goes below zero
-  const handleRefill500g = (mediaId: string) => {
+  const handleRefill500g = (mediaId?: string) => {
     const refillsKey = "labflow_media_refills";
     const refills: Record<string, number> = JSON.parse(localStorage.getItem(refillsKey) || "{}");
-    refills[mediaId] = (refills[mediaId] || 0) + 500.0;
+    refills["global_pool"] = (refills["global_pool"] || 0) + 500.0;
+    if (mediaId) {
+      refills[mediaId] = (refills[mediaId] || 0) + 500.0;
+    }
     localStorage.setItem(refillsKey, JSON.stringify(refills));
 
     setBlockingShortfall(null);
-
-    // Trigger recompute by re-setting availableDays
     setAvailableDays((prev) => [...prev]);
   };
 
