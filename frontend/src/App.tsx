@@ -11,6 +11,7 @@ import { MediaPage } from "./pages/MediaPage";
 import { AutoclavePage } from "./pages/AutoclavePage";
 import { AutoclaveSettingsPage } from "./pages/AutoclaveSettingsPage";
 import { LafPage } from "./pages/LafPage";
+import { BodBacteriaPage } from "./pages/BodBacteriaPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { FinalReviewPage } from "./pages/FinalReviewPage";
@@ -29,6 +30,8 @@ export default function App() {
             <Route path="/autoclave" element={<AutoclavePage />} />
             <Route path="/laf" element={<LafPage />} />
             <Route path="/stages/3" element={<LafPage />} />
+            <Route path="/bod-bacteria" element={<BodBacteriaPage />} />
+            <Route path="/stages/4" element={<BodBacteriaPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/autoclave" element={<AutoclaveSettingsPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
