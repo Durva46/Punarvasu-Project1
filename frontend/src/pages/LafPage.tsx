@@ -143,7 +143,7 @@ export const LafPage: React.FC = () => {
               uvBurningHours: "20 mins", // 20 mins UV burning
               sampleCount: count,
               endTime: calculateDefaultEndTime(count),
-              cleaningRecord: "Cleaned daily (70% IPA)",
+              cleaningRecord: "Everyday cleaning done",
               doneBy: defaultStaff,
               checkedBy: "QC Chemist",
             };
@@ -171,7 +171,7 @@ export const LafPage: React.FC = () => {
         uvBurningHours: "20 mins",
         sampleCount: 2,
         endTime: "03:30 PM", // < 5 samples -> 3:30 PM
-        cleaningRecord: "Cleaned daily (70% IPA)",
+        cleaningRecord: "Everyday cleaning done",
         doneBy: defaultStaff,
         checkedBy: "QC Chemist",
       },
@@ -186,7 +186,7 @@ export const LafPage: React.FC = () => {
         uvBurningHours: "20 mins",
         sampleCount: 5,
         endTime: "04:00 PM", // == 5 samples -> 4:00 PM
-        cleaningRecord: "Cleaned daily (70% IPA)",
+        cleaningRecord: "Everyday cleaning done",
         doneBy: defaultStaff,
         checkedBy: "QC Chemist",
       },
@@ -201,7 +201,7 @@ export const LafPage: React.FC = () => {
         uvBurningHours: "20 mins",
         sampleCount: 7,
         endTime: "05:00 PM", // > 5 samples -> 5:00 PM
-        cleaningRecord: "Cleaned daily (70% IPA)",
+        cleaningRecord: "Everyday cleaning done",
         doneBy: defaultStaff,
         checkedBy: "QC Chemist",
       },
@@ -241,7 +241,7 @@ export const LafPage: React.FC = () => {
       uvBurningHours: "20 mins",
       sampleCount: 1,
       endTime: "03:30 PM",
-      cleaningRecord: "Cleaned with 70% IPA & Ready",
+      cleaningRecord: "Everyday cleaning done",
       doneBy: defaultStaff,
       checkedBy: "QC Chemist",
     };
@@ -453,7 +453,7 @@ export const LafPage: React.FC = () => {
                         value={row.cleaningRecord}
                         onChange={(e) => handleUpdateField(row.id, "cleaningRecord", e.target.value)}
                         className="w-full text-xs border border-gray-300 rounded px-1.5 py-1 text-gray-800 font-medium bg-emerald-50/20 focus:ring-1 focus:ring-blue-500"
-                        placeholder="Cleaned daily (70% IPA)"
+                        placeholder="Everyday cleaning done"
                       />
                     </div>
                   </td>
