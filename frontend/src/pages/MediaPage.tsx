@@ -2,28 +2,55 @@
  * frontend/src/pages/MediaPage.tsx
  *
  * Media Preparation Page (Step 1).
- * Adheres strictly to Laboratory Formulation Engine:
  *
- * Variables:
- *  - S = Total samples registered on date
- *  - W = Samples containing "water" in name
- *  - N = S - W (Samples without "water" in name)
- *  - Positive Control = 1
- *  - Negative Control = 1
+ * Exact Formulation & Ledger Rules:
  *
- * Tube/Plate Calculations:
- *  a) Soybean Casein Digest Broth: Tubes/Plates = S * 2
- *  b) Mac Conkey's Broth: Tubes/Plates = (S + 1 + 1 + 1) * 2  (extra 1s for Positive and Negative control)
- *  c) Peptone Water to Urea Broth: Tubes/Plates = S + 1 + 1
- *  d) Conditional R2A Agar (added ONLY when W > 0): Tubes/Plates = W * 2
- *  e) Soybean Casein Digest Agar & Sabouraud Dextrose Agar: Tubes/Plates = (N * 2) + 1 + 1
+ * 1. Variables per date:
+ *    - S = Total samples registered on date
+ *    - W = Samples containing "water" in name
+ *    - N = S - W (Samples without "water" in name)
+ *    - Positive Control = 1
+ *    - Negative Control = 1
  *
- * Opening Balance & Quantity Used:
- *  - User is prompted once for Opening Balance (red flag if < 10 gm).
- *  - Opening Balance is auto-filled across all media rows.
- *  - User enters Quantity Used (gm) for each media.
- *  - Balance is calculated: Balance = Opening Balance - Quantity Used.
- *  - Default prepared by = authenticated user; authorized selection of staff supported.
+ * 2. Tube / Plate Formulas:
+ *    a) Soybean Casein Digest Broth: Tubes = S * 2
+ *    b) Mac Conkey's Broth: Tubes = (S + 1 + 1 + 1) * 2  (1 sample + 1 positive control + 1 negative control)
+ *    c) Peptone Water to Urea Broth: Tubes = S + 1 + 1
+ *    d) R2A Agar (Conditional, ONLY when W > 0): Tubes = W * 2
+ *    e) Soybean Casein Digest Agar & Sabouraud Dextrose Agar: Tubes = (N * 2) + 1 + 1
+ *
+ * 3. Exact Multiplier for Quantity Used (gm) = number of tubes * factor:
+ *    - SCDA (Soybean Casein Digest Agar): tubes * 0.80
+ *    - SDA (Sabouraud Dextrose Agar): tubes * 1.30
+ *    - SCDM / SCDB (Soybean Casein Digest Broth): tubes * 2.70
+ *    - Mac Conkey's Broth: tubes * 0.40
+ *    - Peptone Water: tubes * 0.07
+ *    - Mac Conkey's Agar: tubes * 1.03
+ *    - Eosine Methelene Blue Agar (EMB): tubes * 0.75
+ *    - Mannitol Salt Agar: tubes * 2.22
+ *    - Vogel Johnson Agar: tubes * 1.20
+ *    - Baird Parker Agar: tubes * 1.32
+ *    - Cetrimide Agar: tubes * 0.91
+ *    - Pseudomonas Agar: tubes * 0.96
+ *    - Selenite F Broth: tubes * 0.43
+ *    - Tetrathionate Broth: tubes * 0.78
+ *    - XLD Agar: tubes * 1.10
+ *    - BSA Agar: tubes * 1.04
+ *    - BGA Agar: tubes * 1.16
+ *    - TSI Agar: tubes * 1.41
+ *    - Urea Broth: tubes * 0.20
+ *    - R2A Agar: (water samples tubes) * 0.36
+ *
+ * 4. Opening Balance & Running Ledger Balance Rules:
+ *    - First date initial opening balance starts at 500.00 gm (per media).
+ *    - For every subsequent date, the Opening Balance is carried forward from the PREVIOUS date's ending balance.
+ *    - Ending Balance = Opening Balance - Quantity Used.
+ *    - If Balance goes negative (shortfall):
+ *      STOP process with ALERT: "Balance is below zero! Please refill 500 gm to continue."
+ *      Provides a 1-click "Refill +500 gm" action which adds 500 gm and allows the remaining workflow to continue.
+ *
+ * 5. Friday Holiday Handling:
+ *    - Friday samples are automatically merged into Saturday.
  */
 
 import React, { useState, useEffect } from "react";
@@ -31,58 +58,62 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { formatGrams } from "../lib/format";
 
-interface MediaMasterDef {
+export interface MediaDef {
   id: string;
   name: string;
   category: "scdb" | "mac_conkey" | "standard" | "r2a" | "agar_non_water";
+  factor: number; // gm per tube
   formulaDisplay: string;
-  defaultQtyUsed?: number;
 }
 
-const BASE_MEDIA_LIST: MediaMasterDef[] = [
-  { id: "m-scdb", name: "Soybean Casein Digest Broth", category: "scdb", formulaDisplay: "S × 2" },
-  { id: "m-mcb", name: "Mac Conkey's Broth", category: "mac_conkey", formulaDisplay: "(S + 1 + 1 + 1) × 2" },
-  { id: "m-pw", name: "Peptone Water", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-mca", name: "Mac Conkey's Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-emba", name: "Eosine Methelene Blue Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-msa", name: "Mannitol Salt Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-vja", name: "Vogel Johnson Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-bpa", name: "Baird Parker Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-ca", name: "Cetrimide Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-pa", name: "Pseudomonas Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-sfb", name: "Selenite F Broth (Part A+B)", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-tb", name: "Tetrathionate Broth", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-xlda", name: "Xylose Lysine Deoxycholate Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-bsa", name: "Bishmuth Sulphite Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-bga", name: "Brilliant Green Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-dca", name: "Deoxycholate Citrate Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-tsia", name: "Triple Sugar Iron Agar", category: "standard", formulaDisplay: "S + 1 + 1" },
-  { id: "m-ub", name: "Urea Broth", category: "standard", formulaDisplay: "S + 1 + 1" },
-  // Conditional R2A Agar inserted dynamically if W > 0
-  { id: "m-scda", name: "Soybean Casein Digest Agar", category: "agar_non_water", formulaDisplay: "(N × 2) + 1 + 1" },
-  { id: "m-sda", name: "Sabouraud Dextrose Agar", category: "agar_non_water", formulaDisplay: "(N × 2) + 1 + 1" },
+export const MEDIA_REGISTRY: MediaDef[] = [
+  { id: "m-scdb", name: "Soybean Casein Digest Broth (SCDM)", category: "scdb", factor: 2.70, formulaDisplay: "S × 2" },
+  { id: "m-mcb", name: "Mac Conkey's Broth", category: "mac_conkey", factor: 0.40, formulaDisplay: "(S + 1 + 1 + 1) × 2" },
+  { id: "m-pw", name: "Peptone Water", category: "standard", factor: 0.07, formulaDisplay: "S + 1 + 1" },
+  { id: "m-mca", name: "Mac Conkey's Agar", category: "standard", factor: 1.03, formulaDisplay: "S + 1 + 1" },
+  { id: "m-emba", name: "Eosine Methelene Blue Agar (EMB)", category: "standard", factor: 0.75, formulaDisplay: "S + 1 + 1" },
+  { id: "m-msa", name: "Mannitol Salt Agar", category: "standard", factor: 2.22, formulaDisplay: "S + 1 + 1" },
+  { id: "m-vja", name: "Vogel Johnson Agar", category: "standard", factor: 1.20, formulaDisplay: "S + 1 + 1" },
+  { id: "m-bpa", name: "Baird Parker Agar", category: "standard", factor: 1.32, formulaDisplay: "S + 1 + 1" },
+  { id: "m-ca", name: "Cetrimide Agar", category: "standard", factor: 0.91, formulaDisplay: "S + 1 + 1" },
+  { id: "m-pa", name: "Pseudomonas Agar", category: "standard", factor: 0.96, formulaDisplay: "S + 1 + 1" },
+  { id: "m-sfb", name: "Selenite F Broth", category: "standard", factor: 0.43, formulaDisplay: "S + 1 + 1" },
+  { id: "m-tb", name: "Tetrathionate Broth", category: "standard", factor: 0.78, formulaDisplay: "S + 1 + 1" },
+  { id: "m-xlda", name: "Xylose Lysine Deoxycholate (XLD) Agar", category: "standard", factor: 1.10, formulaDisplay: "S + 1 + 1" },
+  { id: "m-bsa", name: "Bishmuth Sulphite Agar (BSA)", category: "standard", factor: 1.04, formulaDisplay: "S + 1 + 1" },
+  { id: "m-bga", name: "Brilliant Green Agar (BGA)", category: "standard", factor: 1.16, formulaDisplay: "S + 1 + 1" },
+  { id: "m-dca", name: "Deoxycholate Citrate Agar (DCA)", category: "standard", factor: 1.00, formulaDisplay: "S + 1 + 1" },
+  { id: "m-tsia", name: "Triple Sugar Iron Agar (TSI)", category: "standard", factor: 1.41, formulaDisplay: "S + 1 + 1" },
+  { id: "m-ub", name: "Urea Broth", category: "standard", factor: 0.20, formulaDisplay: "S + 1 + 1" },
+  // Conditional R2A Agar inserted dynamically before SCDA/SDA when W > 0
+  { id: "m-scda", name: "Soybean Casein Digest Agar (SCDA)", category: "agar_non_water", factor: 0.80, formulaDisplay: "(N × 2) + 1 + 1" },
+  { id: "m-sda", name: "Sabouraud Dextrose Agar (SDA)", category: "agar_non_water", factor: 1.30, formulaDisplay: "(N × 2) + 1 + 1" },
 ];
 
-const R2A_MEDIA_DEF: MediaMasterDef = {
+const R2A_DEF: MediaDef = {
   id: "m-r2a",
   name: "R2A Agar (Water Specific)",
   category: "r2a",
+  factor: 0.36,
   formulaDisplay: "W × 2",
 };
 
-interface PreparedMediaRow {
+interface PreparedRow {
   id: string;
   name: string;
+  category: string;
+  factor: number;
   formulaDisplay: string;
   tubesPlates: number;
   openingBalanceGm: number;
   quantityUsedGm: number;
   balanceGm: number;
   preparedBy: string;
+  isNegativeShortfall: boolean;
   isConditional?: boolean;
 }
 
-interface StoredDayAnalysis {
+interface DayData {
   date: string; // ISO
   displayDate: string; // DD-MM-YYYY
   total: number; // S
@@ -95,59 +126,62 @@ export const MediaPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Selected date & data from uploaded excel
-  const [availableDays, setAvailableDays] = useState<StoredDayAnalysis[]>([]);
+  const [availableDays, setAvailableDays] = useState<DayData[]>([]);
   const [selectedDateIso, setSelectedDateIso] = useState<string>("");
 
-  // Opening balance prompt
-  const [openingBalanceInput, setOpeningBalanceInput] = useState<string>("500");
-  const [, setOpeningBalanceApplied] = useState<boolean>(false);
-  const [isLowStockAlert, setIsLowStockAlert] = useState<boolean>(false);
+  // Ledger state: store ending balance per media across dates
+  // mediaId -> running balance
+  const [, setMediaLedger] = useState<Record<string, number>>({});
+  const [mediaRows, setMediaRows] = useState<PreparedRow[]>([]);
 
-  // Table rows per selected date
-  const [mediaRows, setMediaRows] = useState<PreparedMediaRow[]>([]);
+  // Negative balance stopping condition & refill modal state
+  const [blockingShortfall, setBlockingShortfall] = useState<{
+    mediaId: string;
+    mediaName: string;
+    opening: number;
+    needed: number;
+    deficit: number;
+  } | null>(null);
 
-  // Staff options
+  // Staff list
   const defaultStaff = user?.fullName || "Lab Analyst";
   const [selectedStaff, setSelectedStaff] = useState<string>(defaultStaff);
   const staffList = ["Lab Analyst", "QC Chemist", "Microbiologist", "Lab Supervisor", defaultStaff].filter(
     (v, i, a) => a.indexOf(v) === i
   );
 
-  // Save notification
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
-  // 1. Load days from Excel analysis stored in localStorage
+  // 1. Load days on mount from analysis
   useEffect(() => {
     const cachedDaily = localStorage.getItem("labflow_analyzed_daily");
     if (cachedDaily) {
       try {
-        const days: StoredDayAnalysis[] = JSON.parse(cachedDaily);
+        const days: DayData[] = JSON.parse(cachedDaily);
         setAvailableDays(days);
         if (days.length > 0) {
           const preselected = localStorage.getItem("labflow_selected_date");
           const found = days.find((d) => d.date === preselected || d.displayDate === preselected);
           setSelectedDateIso(found ? found.date : days[0].date);
         }
-      } catch (err) {
-        console.error("Failed to load cached daily analysis", err);
+      } catch (e) {
+        console.error(e);
       }
     } else {
-      // Default demo test day if no excel uploaded yet
-      const fallback: StoredDayAnalysis = {
+      // Fallback sample day
+      const fallback: DayData = {
         date: new Date().toISOString().slice(0, 10),
         displayDate: "27-10-2026",
         total: 4,
         water: 1,
         nonWater: 3,
-        sampleNames: ["Water for Injection", "Purified Water Raw", "Syrup Base", "Herbal Extract"],
+        sampleNames: ["Water for Injection", "Purified Water", "Liquid Glucose", "Cough Syrup"],
       };
       setAvailableDays([fallback]);
       setSelectedDateIso(fallback.date);
     }
   }, []);
 
-  // Current active day counts
   const currentDay = availableDays.find((d) => d.date === selectedDateIso) || availableDays[0];
   const S = currentDay?.total || 0;
   const W = currentDay?.water || 0;
@@ -155,174 +189,148 @@ export const MediaPage: React.FC = () => {
   const positiveControl = 1;
   const negativeControl = 1;
 
-  // 2. Build rows whenever date or day counts change
+  // 2. Recompute ledger and current day rows whenever days or selected date changes
   useEffect(() => {
-    if (!currentDay) return;
+    if (!currentDay || availableDays.length === 0) return;
 
-    // Check if user already customized this day in localStorage
-    const storageKey = `labflow_media_prep_${currentDay.date}`;
-    const cachedRows = localStorage.getItem(storageKey);
-    const cachedOpening = localStorage.getItem(`labflow_media_opening_${currentDay.date}`);
+    // Load any user refills from storage
+    const refillsKey = "labflow_media_refills";
+    const refills: Record<string, number> = JSON.parse(localStorage.getItem(refillsKey) || "{}");
 
-    if (cachedOpening) {
-      setOpeningBalanceInput(cachedOpening);
-      setOpeningBalanceApplied(true);
-      setIsLowStockAlert(parseFloat(cachedOpening) < 10);
-    }
+    // Chronological simulation of all dates up to currentDay to carry forward balances accurately
+    const sortedDays = [...availableDays].sort((a, b) => a.date.localeCompare(b.date));
+    const runningBalances: Record<string, number> = {};
 
-    // Determine list of media: insert R2A only if W > 0
-    const mediaList: MediaMasterDef[] = [];
-    BASE_MEDIA_LIST.forEach((m) => {
-      if (m.id === "m-scda" && W > 0) {
-        mediaList.push(R2A_MEDIA_DEF);
-      }
-      mediaList.push(m);
+    // Initialize all media with 500 gm + any manual refills
+    MEDIA_REGISTRY.forEach((m) => {
+      runningBalances[m.id] = (refills[m.id] || 0) + 500.0;
     });
+    runningBalances[R2A_DEF.id] = (refills[R2A_DEF.id] || 0) + 500.0;
 
-    const initialOpening = parseFloat(openingBalanceInput) || 500;
+    let targetRows: PreparedRow[] = [];
+    let detectedDeficit: typeof blockingShortfall = null;
 
-    let parsedCustom: Record<string, { qtyUsed?: number; opening?: number; staff?: string }> = {};
-    if (cachedRows) {
-      try {
-        parsedCustom = JSON.parse(cachedRows);
-      } catch {}
-    }
+    for (const d of sortedDays) {
+      const dayS = d.total;
+      const dayW = d.water;
+      const dayN = d.nonWater;
 
-    const rows: PreparedMediaRow[] = mediaList.map((m) => {
-      // Tube/Plate calculation according to exact rules:
-      let tubes = 0;
-      switch (m.category) {
-        case "scdb":
-          // a) Soybean Casein Digest Broth: Tubes/Plates = S * 2
-          tubes = S * 2;
-          break;
-        case "mac_conkey":
-          // b) Mac Conkey's Broth: Tubes/Plates = (S + 1 + 1 + 1) * 2
-          tubes = (S + 1 + positiveControl + negativeControl) * 2;
-          break;
-        case "standard":
-          // c) Peptone Water to Urea Broth: Tubes/Plates = S + 1 + 1
-          tubes = S + positiveControl + negativeControl;
-          break;
-        case "r2a":
-          // d) R2A Agar: Tubes/Plates = W * 2
-          tubes = W * 2;
-          break;
-        case "agar_non_water":
-          // e) SCDA & SDA: Tubes/Plates = (N * 2) + 1 + 1
-          tubes = N * 2 + positiveControl + negativeControl;
-          break;
+      // Construct media list for day (R2A inserted if dayW > 0)
+      const list: MediaDef[] = [];
+      MEDIA_REGISTRY.forEach((m) => {
+        if (m.id === "m-scda" && dayW > 0) {
+          list.push(R2A_DEF);
+        }
+        list.push(m);
+      });
+
+      const dayRows: PreparedRow[] = [];
+
+      for (const m of list) {
+        // Calculate tube count
+        let tubes = 0;
+        switch (m.category) {
+          case "scdb":
+            tubes = dayS * 2;
+            break;
+          case "mac_conkey":
+            tubes = (dayS + 1 + positiveControl + negativeControl) * 2;
+            break;
+          case "standard":
+            tubes = dayS + positiveControl + negativeControl;
+            break;
+          case "r2a":
+            tubes = dayW * 2;
+            break;
+          case "agar_non_water":
+            tubes = dayN * 2 + positiveControl + negativeControl;
+            break;
+        }
+
+        // Calculate quantity used (gm) = number of tubes * factor
+        const qtyUsed = parseFloat((tubes * m.factor).toFixed(2));
+        const opening = parseFloat((runningBalances[m.id] ?? 500.0).toFixed(2));
+        const balance = parseFloat((opening - qtyUsed).toFixed(2));
+
+        const isNegative = balance < 0;
+
+        // If shortfall detected on or before selected date, record for blocking alert
+        if (isNegative && !detectedDeficit && d.date <= currentDay.date) {
+          detectedDeficit = {
+            mediaId: m.id,
+            mediaName: m.name,
+            opening,
+            needed: qtyUsed,
+            deficit: parseFloat((qtyUsed - opening).toFixed(2)),
+          };
+        }
+
+        // Update running balance (capped at 0 or allowed negative for calculation)
+        runningBalances[m.id] = balance;
+
+        if (d.date === currentDay.date) {
+          dayRows.push({
+            id: m.id,
+            name: m.name,
+            category: m.category,
+            factor: m.factor,
+            formulaDisplay: m.formulaDisplay,
+            tubesPlates: tubes,
+            openingBalanceGm: opening,
+            quantityUsedGm: qtyUsed,
+            balanceGm: balance,
+            preparedBy: selectedStaff,
+            isNegativeShortfall: isNegative,
+            isConditional: m.category === "r2a",
+          });
+        }
       }
 
-      const custom = parsedCustom[m.id];
-      const opening = custom?.opening !== undefined ? custom.opening : initialOpening;
-      const qtyUsed = custom?.qtyUsed !== undefined ? custom.qtyUsed : 0;
-      const balance = Math.max(0, opening - qtyUsed);
-      const rowStaff = custom?.staff || selectedStaff;
-
-      return {
-        id: m.id,
-        name: m.name,
-        formulaDisplay: m.formulaDisplay,
-        tubesPlates: tubes,
-        openingBalanceGm: opening,
-        quantityUsedGm: qtyUsed,
-        balanceGm: balance,
-        preparedBy: rowStaff,
-        isConditional: m.category === "r2a",
-      };
-    });
-
-    setMediaRows(rows);
-  }, [currentDay, selectedDateIso]);
-
-  // Handle setting/autofilling opening balance across all media rows
-  const handleApplyOpeningBalance = (e: React.FormEvent) => {
-    e.preventDefault();
-    const val = parseFloat(openingBalanceInput);
-    if (isNaN(val)) return;
-
-    setIsLowStockAlert(val < 10);
-    setOpeningBalanceApplied(true);
-
-    // Auto-fill across all rows and update balances
-    setMediaRows((prev) =>
-      prev.map((r) => {
-        const bal = Math.max(0, val - r.quantityUsedGm);
-        return {
-          ...r,
-          openingBalanceGm: val,
-          balanceGm: bal,
-        };
-      })
-    );
-
-    if (currentDay) {
-      localStorage.setItem(`labflow_media_opening_${currentDay.date}`, String(val));
+      if (d.date === currentDay.date) {
+        targetRows = dayRows;
+      }
     }
+
+    setMediaLedger(runningBalances);
+    setMediaRows(targetRows);
+    setBlockingShortfall(detectedDeficit);
+  }, [availableDays, selectedDateIso, selectedStaff]);
+
+  // Handle refill 500gm when balance goes below zero
+  const handleRefill500g = (mediaId: string) => {
+    const refillsKey = "labflow_media_refills";
+    const refills: Record<string, number> = JSON.parse(localStorage.getItem(refillsKey) || "{}");
+    refills[mediaId] = (refills[mediaId] || 0) + 500.0;
+    localStorage.setItem(refillsKey, JSON.stringify(refills));
+
+    setBlockingShortfall(null);
+
+    // Trigger recompute by re-setting availableDays
+    setAvailableDays((prev) => [...prev]);
   };
 
-  // Handle changing quantity used for any specific media
-  const handleQuantityUsedChange = (rowId: string, valStr: string) => {
-    const val = parseFloat(valStr) || 0;
-    setMediaRows((prev) =>
-      prev.map((r) => {
-        if (r.id !== rowId) return r;
-        const newBalance = Math.max(0, r.openingBalanceGm - val);
-        return {
-          ...r,
-          quantityUsedGm: val,
-          balanceGm: newBalance,
-        };
-      })
-    );
-  };
-
-  // Handle individual opening balance edit
-  const handleRowOpeningChange = (rowId: string, valStr: string) => {
-    const val = parseFloat(valStr) || 0;
-    setMediaRows((prev) =>
-      prev.map((r) => {
-        if (r.id !== rowId) return r;
-        const newBalance = Math.max(0, val - r.quantityUsedGm);
-        return {
-          ...r,
-          openingBalanceGm: val,
-          balanceGm: newBalance,
-        };
-      })
-    );
-  };
-
-  // Handle staff assignment change
-  const handleStaffChange = (rowId: string, staffName: string) => {
-    setMediaRows((prev) =>
-      prev.map((r) => (r.id === rowId ? { ...r, preparedBy: staffName } : r))
-    );
+  // Reset entire ledger to initial 500g
+  const handleResetLedger = () => {
+    localStorage.removeItem("labflow_media_refills");
+    setBlockingShortfall(null);
+    setAvailableDays((prev) => [...prev]);
   };
 
   // Save current day preparation record
   const handleSavePreparation = () => {
     if (!currentDay) return;
     const storageKey = `labflow_media_prep_${currentDay.date}`;
-    const payload: Record<string, { qtyUsed: number; opening: number; staff: string }> = {};
-
-    mediaRows.forEach((r) => {
-      payload[r.id] = {
-        qtyUsed: r.quantityUsedGm,
-        opening: r.openingBalanceGm,
-        staff: r.preparedBy,
-      };
-    });
-
-    localStorage.setItem(storageKey, JSON.stringify(payload));
-    localStorage.setItem(`labflow_media_opening_${currentDay.date}`, openingBalanceInput);
+    localStorage.setItem(storageKey, JSON.stringify(mediaRows));
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
-  // Navigate to Autoclave Log Book (Step 2)
+  // Proceed to Step 2: Autoclave
   const proceedToAutoclave = () => {
+    if (blockingShortfall) {
+      alert(`Cannot proceed! ${blockingShortfall.mediaName} has a negative balance (${blockingShortfall.deficit} gm shortfall). Please refill 500 gm first.`);
+      return;
+    }
     handleSavePreparation();
     navigate("/autoclave");
   };
@@ -339,7 +347,7 @@ export const MediaPage: React.FC = () => {
             Media Preparation Record & Formulation Engine
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            PETLAD MAHAL AROGYA MANDAL PHARMACY — Form No: QC/M/023/F/01
+            Initial opening balance: <strong>500 gm</strong>. Subsequent opening balances automatically carried forward from previous day's closing balance.
           </p>
         </div>
 
@@ -352,7 +360,12 @@ export const MediaPage: React.FC = () => {
           </Link>
           <button
             onClick={proceedToAutoclave}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-sm transition"
+            disabled={!!blockingShortfall}
+            className={`px-4 py-2 text-white rounded text-xs font-semibold shadow-sm transition ${
+              blockingShortfall
+                ? "bg-gray-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
             Proceed to Step 2: Autoclave &rarr;
           </button>
@@ -382,8 +395,21 @@ export const MediaPage: React.FC = () => {
             </select>
           </div>
 
-          <div className="text-xs text-gray-500">
-            Authenticated User: <span className="font-semibold text-gray-800">{defaultStaff}</span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500">
+              Responsible Staff:
+            </span>
+            <select
+              value={selectedStaff}
+              onChange={(e) => setSelectedStaff(e.target.value)}
+              className="text-xs border border-gray-300 rounded px-2.5 py-1 bg-white font-medium"
+            >
+              {staffList.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
 
@@ -400,7 +426,7 @@ export const MediaPage: React.FC = () => {
               Water Samples ($W$)
             </span>
             <span className="text-xl font-bold text-blue-800">{W}</span>
-            {W > 0 && <span className="block text-[10px] text-blue-600 mt-0.5">R2A Agar Added</span>}
+            {W > 0 && <span className="block text-[10px] text-blue-600 mt-0.5">R2A Agar Row Added</span>}
           </div>
           <div className="bg-slate-50 border border-gray-200 p-3 rounded text-center">
             <span className="block text-[11px] font-semibold text-gray-500 uppercase">
@@ -422,10 +448,10 @@ export const MediaPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Registered sample names for this day */}
+        {/* Samples registered today */}
         {currentDay && currentDay.sampleNames.length > 0 && (
           <div className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded border border-gray-200 flex flex-wrap items-center gap-1.5">
-            <span className="font-semibold text-gray-700">Samples registered today:</span>
+            <span className="font-semibold text-gray-700">Samples tested today:</span>
             {currentDay.sampleNames.map((name, idx) => (
               <span
                 key={idx}
@@ -441,78 +467,33 @@ export const MediaPage: React.FC = () => {
         )}
       </div>
 
-      {/* Opening Balance Prompt & Auto-Fill Section */}
-      <div className="bg-white border border-gray-200 rounded-lg p-5 shadow-sm">
-        <h2 className="text-sm font-bold text-gray-800 uppercase tracking-wide mb-1">
-          Opening Balance & Formulation Parameters
-        </h2>
-        <p className="text-xs text-gray-500 mb-4">
-          Enter the starting Opening Balance in grams (gm). Clicking <strong>"Apply & Auto-Fill Across All Media"</strong> will populate the Opening Balance column for every media row on this date.
-        </p>
-
-        <form onSubmit={handleApplyOpeningBalance} className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-semibold text-gray-700">Opening Balance:</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              value={openingBalanceInput}
-              onChange={(e) => {
-                setOpeningBalanceInput(e.target.value);
-                const val = parseFloat(e.target.value);
-                setIsLowStockAlert(!isNaN(val) && val < 10);
-              }}
-              className="border border-gray-300 rounded px-3 py-1.5 text-sm w-36 shadow-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
-              placeholder="e.g. 500"
-            />
-            <span className="text-xs font-semibold text-gray-600">gm</span>
-          </div>
-
-          <button
-            type="submit"
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold shadow-xs transition"
-          >
-            Apply & Auto-Fill Across All Media
-          </button>
-
-          {/* Default Staff selector for accountability */}
-          <div className="ml-auto flex items-center gap-2">
-            <label className="text-xs font-semibold text-gray-700">Prepared By (Staff):</label>
-            <select
-              value={selectedStaff}
-              onChange={(e) => {
-                const newStaff = e.target.value;
-                setSelectedStaff(newStaff);
-                setMediaRows((prev) => prev.map((r) => ({ ...r, preparedBy: newStaff })));
-              }}
-              className="text-xs border border-gray-300 rounded px-2.5 py-1.5 bg-white shadow-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
-            >
-              {staffList.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
-          </div>
-        </form>
-
-        {/* Low Stock Alert Signal (Red Flag) if < 10 gm */}
-        {isLowStockAlert && (
-          <div className="mt-4 p-3 bg-red-50 border-l-4 border-red-600 text-red-800 rounded-r flex items-center gap-2">
-            <span className="text-red-600 font-bold text-lg">🚩</span>
-            <div>
-              <span className="font-bold text-xs uppercase tracking-wide">
-                Alert: Low Stock Warning!
-              </span>
-              <p className="text-xs text-red-700">
-                Opening Balance is <strong>{openingBalanceInput || 0} gm</strong>, which is below the mandatory minimum threshold of <strong>10 gm</strong>. Refill recommended.
+      {/* BLOCKING ALERT: Shortfall / Negative Balance */}
+      {blockingShortfall && (
+        <div className="bg-red-50 border-2 border-red-500 rounded-lg p-5 shadow-sm space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="text-2xl">🛑</span>
+            <div className="flex-1">
+              <h2 className="text-sm font-bold text-red-900 uppercase tracking-wide">
+                Process Stopped: Negative Balance Alert!
+              </h2>
+              <p className="text-xs text-red-800 mt-1">
+                The balance for <strong>{blockingShortfall.mediaName}</strong> has fallen below zero (deficit:{" "}
+                <span className="font-bold text-red-600">-{blockingShortfall.deficit} gm</span>).
+                Required quantity ({blockingShortfall.needed} gm) exceeds current opening balance ({blockingShortfall.opening} gm).
+              </p>
+              <p className="text-xs font-semibold text-red-900 mt-1">
+                Please refill 500 gm of stock to replenish inventory and continue the workflow.
               </p>
             </div>
+            <button
+              onClick={() => handleRefill500g(blockingShortfall.mediaId)}
+              className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs rounded shadow transition whitespace-nowrap"
+            >
+              + Refill 500 gm Now
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Media Preparation Table */}
       <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
@@ -522,15 +503,24 @@ export const MediaPage: React.FC = () => {
               Media Preparation Table — {currentDay?.displayDate}
             </h3>
             <p className="text-xs text-gray-500">
-              Formula: Balance Quantity = Opening Balance − Quantity Used. Tube/Plates calculated per media formulation.
+              Quantity Used = Tubes × Grams per tube. Balance = Opening Balance − Quantity Used.
             </p>
           </div>
-          <button
-            onClick={handleSavePreparation}
-            className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-xs transition"
-          >
-            {savedSuccess ? "✓ Saved" : "Save Preparation Log"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetLedger}
+              title="Reset all media to 500 gm initial stock"
+              className="px-3 py-1.5 border border-gray-300 rounded text-xs font-medium text-gray-600 hover:bg-gray-100 transition"
+            >
+              Reset to 500g Initial
+            </button>
+            <button
+              onClick={handleSavePreparation}
+              className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded text-xs font-semibold shadow-xs transition"
+            >
+              {savedSuccess ? "✓ Saved" : "Save Preparation Log"}
+            </button>
+          </div>
         </div>
 
         <div className="overflow-x-auto">
@@ -541,20 +531,25 @@ export const MediaPage: React.FC = () => {
                 <th className="px-4 py-3 text-left">Name of Media</th>
                 <th className="px-4 py-3 text-center w-28">Formula Used</th>
                 <th className="px-4 py-3 text-center w-24">Tube / Plates</th>
+                <th className="px-4 py-3 text-right w-28">Factor (gm/tube)</th>
                 <th className="px-4 py-3 text-right w-32">Opening (gm)</th>
                 <th className="px-4 py-3 text-right w-36">Quantity Used (gm)</th>
                 <th className="px-4 py-3 text-right w-32">Balance (gm)</th>
-                <th className="px-4 py-3 text-left w-36">Prepared By</th>
+                <th className="px-4 py-3 text-center w-28">Stock Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
               {mediaRows.map((row) => {
-                const isShortfall = row.quantityUsedGm > row.openingBalanceGm;
+                const isShortfall = row.balanceGm < 0;
                 return (
                   <tr
                     key={row.id}
                     className={`hover:bg-blue-50/20 transition ${
-                      row.isConditional ? "bg-blue-50/10" : ""
+                      isShortfall
+                        ? "bg-red-50/40"
+                        : row.isConditional
+                        ? "bg-blue-50/15"
+                        : ""
                     }`}
                   >
                     {/* Date */}
@@ -584,47 +579,29 @@ export const MediaPage: React.FC = () => {
                       </span>
                     </td>
 
+                    {/* Factor (gm per tube) */}
+                    <td className="px-4 py-3 text-right font-mono text-gray-600">
+                      {row.factor.toFixed(2)}
+                    </td>
+
                     {/* Opening Balance (gm) */}
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        value={row.openingBalanceGm}
-                        onChange={(e) => handleRowOpeningChange(row.id, e.target.value)}
-                        className={`w-24 text-right px-2 py-1 border rounded text-xs font-mono font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none ${
-                          row.openingBalanceGm < 10
-                            ? "border-red-300 bg-red-50 text-red-700"
-                            : "border-gray-300 bg-white"
-                        }`}
-                      />
+                    <td className="px-4 py-3 text-right font-mono font-medium text-gray-800">
+                      {formatGrams(row.openingBalanceGm)} gm
                     </td>
 
-                    {/* Quantity Used (gm) */}
-                    <td className="px-4 py-3 text-right">
-                      <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        value={row.quantityUsedGm === 0 ? "" : row.quantityUsedGm}
-                        onChange={(e) => handleQuantityUsedChange(row.id, e.target.value)}
-                        className={`w-28 text-right px-2 py-1 border rounded text-xs font-mono font-semibold focus:ring-1 focus:ring-blue-500 focus:outline-none ${
-                          isShortfall
-                            ? "border-red-500 bg-red-50 text-red-700"
-                            : "border-gray-300 bg-white"
-                        }`}
-                      />
+                    {/* Quantity Used (gm) = tubes * factor */}
+                    <td className="px-4 py-3 text-right font-mono font-bold text-blue-700">
+                      {formatGrams(row.quantityUsedGm)} gm
                     </td>
 
-                    {/* Calculated Balance (gm) = Opening - Qty Used */}
+                    {/* Calculated Balance (gm) */}
                     <td className="px-4 py-3 text-right font-mono font-bold">
                       <span
                         className={
-                          row.balanceGm < 10
-                            ? "text-red-600"
-                            : row.balanceGm < 50
-                            ? "text-amber-600"
+                          isShortfall
+                            ? "text-red-700 bg-red-100 px-2 py-0.5 rounded"
+                            : row.balanceGm < 10
+                            ? "text-amber-700"
                             : "text-emerald-700"
                         }
                       >
@@ -632,19 +609,24 @@ export const MediaPage: React.FC = () => {
                       </span>
                     </td>
 
-                    {/* Prepared By */}
-                    <td className="px-4 py-3">
-                      <select
-                        value={row.preparedBy}
-                        onChange={(e) => handleStaffChange(row.id, e.target.value)}
-                        className="text-[11px] border border-gray-300 rounded px-2 py-1 bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
-                      >
-                        {staffList.map((s) => (
-                          <option key={s} value={s}>
-                            {s}
-                          </option>
-                        ))}
-                      </select>
+                    {/* Stock Status / Refill Action */}
+                    <td className="px-4 py-3 text-center">
+                      {isShortfall ? (
+                        <button
+                          onClick={() => handleRefill500g(row.id)}
+                          className="px-2 py-0.5 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold shadow-xs animate-pulse"
+                        >
+                          Refill 500g
+                        </button>
+                      ) : row.balanceGm < 10 ? (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-800 rounded text-[10px] font-bold">
+                          Low Stock ⚠️
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded text-[10px] font-bold">
+                          OK ✓
+                        </span>
+                      )}
                     </td>
                   </tr>
                 );
@@ -653,23 +635,28 @@ export const MediaPage: React.FC = () => {
           </table>
         </div>
 
-        {/* Footer info & Save CTA */}
+        {/* Footer info & CTA */}
         <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex flex-wrap items-center justify-between gap-3 text-xs text-gray-500">
           <div>
-            * Form No: QC/M/023/F/01 | Ref SOP: PM/QC/M/023 | Red indicator shows stock &lt; 10 gm.
+            * Form No: QC/M/023/F/01 | Ref SOP: PM/QC/M/023 | Red alert blocks continuation until 500 gm refill.
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handleSavePreparation}
               className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold shadow-xs transition"
             >
-              {savedSuccess ? "✓ Preparation Saved!" : "Save Changes"}
+              {savedSuccess ? "✓ Saved Preparation" : "Save Changes"}
             </button>
             <button
               onClick={proceedToAutoclave}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded font-semibold shadow-xs transition"
+              disabled={!!blockingShortfall}
+              className={`px-4 py-2 text-white rounded font-semibold shadow-xs transition ${
+                blockingShortfall
+                  ? "bg-gray-400 cursor-not-allowed"
+                  : "bg-blue-600 hover:bg-blue-700"
+              }`}
             >
-              Transfer to Step 2: Autoclave &rarr;
+              Proceed to Step 2: Autoclave &rarr;
             </button>
           </div>
         </div>

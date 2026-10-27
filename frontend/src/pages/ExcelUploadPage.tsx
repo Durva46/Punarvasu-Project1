@@ -51,13 +51,11 @@ export const ExcelUploadPage: React.FC = () => {
     if (!val) return null;
     if (val instanceof Date && !isNaN(val.getTime())) return val;
     if (typeof val === "number") {
-      // Excel serial date to JS Date
       const parsed = new Date((val - 25569) * 86400 * 1000);
       if (!isNaN(parsed.getTime())) return parsed;
     }
     if (typeof val === "string") {
       const trimmed = val.trim();
-      // Test common formats DD/MM/YYYY or DD-MM-YYYY
       const parts = trimmed.split(/[/.-]/);
       if (parts.length === 3) {
         if (parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
@@ -74,7 +72,7 @@ export const ExcelUploadPage: React.FC = () => {
     return null;
   };
 
-  // Client-side Excel parsing & analysis engine
+  // Client-side Excel parsing & analysis engine with Friday -> Saturday rollover rule
   const analyzeExcelFile = async (fileToAnalyze: File) => {
     try {
       const buffer = await fileToAnalyze.arrayBuffer();
@@ -95,7 +93,6 @@ export const ExcelUploadPage: React.FC = () => {
       const dateKeys = ["test request date", "date", "registration date", "request date", "received date", "sampling date"];
       const idKeys = ["ar number", "ar no", "sample id", "arnumber", "identifier", "sample identifier"];
 
-      // Find best matched keys from first row keys
       const allRowKeys = Object.keys(rawRows[0] || {});
       const findKey = (candidates: string[]): string | undefined => {
         return allRowKeys.find((k) => {
@@ -117,10 +114,19 @@ export const ExcelUploadPage: React.FC = () => {
         const rawName = String(row[sampleNameKey] || "").trim();
         const rawId = String(row[idKey] || "").trim();
 
-        // Check if row has valid content
         if (!rawDate && !rawName && !rawId) continue;
 
-        const dateObj = parseExcelDate(rawDate);
+        let dateObj = parseExcelDate(rawDate);
+
+        // FRIDAY HOLIDAY RULE:
+        // Friday (getDay() === 5) is declared a laboratory holiday.
+        // Any sample registered on a Friday is shifted/added to Saturday (+1 day).
+        if (dateObj && dateObj.getDay() === 5) {
+          const saturday = new Date(dateObj.getTime());
+          saturday.setDate(saturday.getDate() + 1);
+          dateObj = saturday;
+        }
+
         const isoDateKey = dateObj ? dateObj.toISOString().slice(0, 10) : "Undated";
         const displayDate = dateObj ? formatDMY(dateObj) : "Undated";
 
@@ -175,7 +181,6 @@ export const ExcelUploadPage: React.FC = () => {
     }
   };
 
-  // Fetch list of previously uploaded reports
   const fetchReports = async () => {
     try {
       const data = await apiFetch<ImportSummary[]>("/api/v1/imports");
@@ -183,8 +188,7 @@ export const ExcelUploadPage: React.FC = () => {
       if (data.length > 0) {
         setActiveReport(data[0]);
       }
-    } catch (err: any) {
-      // Backend may be offline or in standalone frontend mode; fall back gracefully to local storage
+    } catch {
       const cached = localStorage.getItem("labflow_analyzed_daily");
       if (cached) {
         try {
@@ -208,7 +212,6 @@ export const ExcelUploadPage: React.FC = () => {
       setFile(selected);
       setUploadError(null);
 
-      // Pre-analyze locally immediately
       try {
         await analyzeExcelFile(selected);
       } catch (err: any) {
@@ -228,10 +231,8 @@ export const ExcelUploadPage: React.FC = () => {
     setUploadError(null);
 
     try {
-      // Step 1: Ensure local analysis is complete
       const analyzed = await analyzeExcelFile(file);
 
-      // Step 2: Attempt sync with backend if online
       const formData = new FormData();
       formData.append("file", file);
       const token = localStorage.getItem("auth_token") || "";
@@ -251,11 +252,9 @@ export const ExcelUploadPage: React.FC = () => {
           }
         }
       } catch (backendError) {
-        // Even if server is unreachable, local analysis is ready
         console.warn("Backend not reachable; proceeding in offline mode:", backendError);
       }
 
-      // Step 3: Set active report state from local analysis
       if (analyzed && analyzed.length > 0) {
         setActiveReport({
           id: `local-${Date.now()}`,
@@ -296,7 +295,8 @@ export const ExcelUploadPage: React.FC = () => {
           </span>
           <h1 className="text-xl font-bold text-gray-900 mt-1">Monthly Sample Excel Intake & Analysis</h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Parses monthly test request sheets date-wise. Calculates total daily samples ($S$), extracts all sample names, and separates water ($W$) vs non-water ($N$) to feed Step 1 (Media Preparation) and Step 2 (Autoclave Log Book).
+            Parses monthly test request sheets date-wise. Calculates total daily samples ($S$), extracts all sample names, and separates water ($W$) vs non-water ($N$).
+            <span className="ml-1 text-blue-700 font-semibold">Note: Friday samples are merged into Saturday due to lab holiday.</span>
           </p>
         </div>
 
@@ -350,7 +350,7 @@ export const ExcelUploadPage: React.FC = () => {
                 {analyzedDaily[0]?.displayDate.slice(3) || "Current Month"}
               </p>
               <span className="text-[11px] text-gray-400">
-                {analyzedDaily.length} sample dates found
+                {analyzedDaily.length} operating days (Fridays merged into Saturdays)
               </span>
             </div>
             <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
@@ -380,7 +380,7 @@ export const ExcelUploadPage: React.FC = () => {
               <div>
                 <h3 className="text-sm font-bold text-gray-800">Date-Wise Sample Analysis & Name Breakdown</h3>
                 <p className="text-xs text-gray-500">
-                  Every date displays: Total sample count ($S$), list of all sample names per day, water samples ($W$), and non-water samples ($N$).
+                  Total sample count ($S$), sample names per day, water samples ($W$), and non-water samples ($N$).
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -427,19 +427,16 @@ export const ExcelUploadPage: React.FC = () => {
 
                     return (
                       <tr key={row.date} className="hover:bg-blue-50/30 transition">
-                        {/* Date */}
                         <td className="px-6 py-4 font-bold text-gray-900 whitespace-nowrap">
                           {row.displayDate}
                         </td>
 
-                        {/* Total Count S */}
                         <td className="px-4 py-4 text-center">
                           <span className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-800 rounded-full">
                             {row.total}
                           </span>
                         </td>
 
-                        {/* Sample Names per day with water indicator */}
                         <td className="px-6 py-4">
                           <div className="space-y-1">
                             <div className="flex flex-wrap gap-1.5">
@@ -476,21 +473,18 @@ export const ExcelUploadPage: React.FC = () => {
                           </div>
                         </td>
 
-                        {/* Water count W */}
                         <td className="px-4 py-4 text-center">
                           <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
                             {row.water}
                           </span>
                         </td>
 
-                        {/* Non-water count N */}
                         <td className="px-4 py-4 text-center">
                           <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded">
                             {row.nonWater}
                           </span>
                         </td>
 
-                        {/* Action: Proceed to Media Preparation */}
                         <td className="px-6 py-4 text-right whitespace-nowrap">
                           <button
                             type="button"
