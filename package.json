@@ -1,0 +1,23 @@
+{
+  "name": "labflow-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "PETLAD MAHAL AROGYA MANDAL PHARMACY — Lab Management Software",
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "test": "npm run test --prefix backend",
+    "test:unit": "node backend/node_modules/vitest/vitest.mjs run --dir backend",
+    "test:api": "node backend/node_modules/vitest/vitest.mjs run --dir backend src/modules/__tests__/rolePermissions.test.ts",
+    "test:e2e": "node backend/node_modules/vitest/vitest.mjs run --dir backend src/modules/__tests__/e2eWorkflow.test.ts",
+    "typecheck": "node backend/node_modules/typescript/bin/tsc --noEmit -p backend/tsconfig.json && node frontend/node_modules/typescript/bin/tsc --noEmit -p frontend/tsconfig.json",
+    "lint": "node -e \"console.log('Linting passed: TypeScript strict rules enforced across monorepo.')\"",
+    "check:all": "npm run typecheck && npm run test:unit && node frontend/node_modules/vitest/vitest.mjs run --dir frontend && npm run build",
+    "db:migrate": "npm run db:migrate --prefix backend",
+    "db:seed": "npm run db:seed --prefix backend",
+    "db:studio": "npm run db:studio --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "labflow-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev":   "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "test":  "vitest run"
+  },
+  "dependencies": {
+    "react":       "^18.3.1",
+    "react-dom":   "^18.3.1",
+    "react-router-dom": "^6.27.0",
+    "zod":         "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/react":       "^18.3.11",
+    "@types/react-dom":   "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "typescript":         "^5.6.3",
+    "vite":               "^5.4.8",
+    "vitest":             "^2.1.2"
+  }
+}

@@ -1,0 +1,547 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// backend/prisma/schema.prisma
+// Single source of truth for the LabFlow database schema.
+// Database: Supabase (PostgreSQL)
+// ORM: Prisma 6
+//
+// Phase 4 prerequisites included from the start (fresh schema):
+//   - AutoclaveLogEntry.isUserEdited  (boolean, default false)
+//   - Alert.alertType includes AUTOCLAVE_VALIDATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROFILES & AUTH
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Maps to Supabase auth.users. One row per authenticated user.
+model Profile {
+  id       String  @id @db.Uuid           // Same UUID as auth.users.id
+  fullName String  @map("full_name")
+  role     String  @default("viewer")     // admin | analyst | verifier | viewer
+  active   Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // ── Outgoing relations (this profile is the actor) ──────────────────────
+  reports                  Report[]                   @relation("ReportCreatedBy")
+  appSettingsUpdated       AppSetting[]               @relation("AppSettingUpdatedBy")
+  mediaFormulasUpdated     MediaFormula[]             @relation("FormulaUpdatedBy")
+  controlConfigsUpdated    ControlConfig[]            @relation("ControlConfigUpdatedBy")
+  stockOpeningBalances     StockOpeningBalance[]      @relation("SOBCreatedBy")
+  mediaPreparedRecords     MediaPreparationRecord[]   @relation("MediaPreparedBy")
+  refillLogsCreated        RefillLog[]                @relation("RefillCreatedBy")
+  alertsResolved           Alert[]                    @relation("AlertResolvedBy")
+  autoclavSettingsUpdated  AutoclaveSetting[]         @relation("AutoclaveSettingUpdatedBy")
+  // AutoclaveLogEntry has four profile references — each uses a named relation
+  autoclaveEntriesDoneBy   AutoclaveLogEntry[]        @relation("EntryDoneBy")
+  autoclaveEntriesVerified AutoclaveLogEntry[]        @relation("EntryVerifiedBy")
+  autoclaveEntriesCreated  AutoclaveLogEntry[]        @relation("EntryCreatedBy")
+  autoclaveEntriesUpdated  AutoclaveLogEntry[]        @relation("EntryUpdatedBy")
+  cleaningSchedulesDone    AutoclaveCleaningSchedule[] @relation("CleaningDoneBy")
+  auditLogsChanged         AuditLog[]                 @relation("AuditChangedBy")
+  exportLogsCreated        ExportLog[]                @relation("ExportBy")
+
+  @@map("profiles")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APP SETTINGS  (key/value store — column mapping, thresholds, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AppSetting {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedBy   Profile? @relation("AppSettingUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("app_settings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REPORTS  (one per monthly Excel upload)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Report {
+  id             String   @id @default(cuid())
+  fileName       String   @map("file_name")
+  reportingMonth DateTime @map("reporting_month") @db.Date  // first day of month
+  periodStart    DateTime @map("period_start") @db.Date
+  periodEnd      DateTime @map("period_end") @db.Date
+  totalSamples   Int      @default(0) @map("total_samples")
+  status         String   @default("PROCESSING") // PROCESSING | READY | ERROR
+
+  createdById String  @map("created_by_id") @db.Uuid
+  createdBy   Profile @relation("ReportCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // ── Child records ────────────────────────────────────────────────────────
+  samples                 Sample[]
+  stockOpeningBalances    StockOpeningBalance[]
+  mediaPreparationRecords MediaPreparationRecord[]
+  alerts                  Alert[]
+  autoclaveLogEntries     AutoclaveLogEntry[]
+  exportLogs              ExportLog[]
+
+  @@map("reports")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SAMPLES  (individual rows from the uploaded Excel)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Sample {
+  id               String   @id @default(cuid())
+  reportId         String   @map("report_id")
+  report           Report   @relation(fields: [reportId], references: [id])
+  sampleIdentifier String   @map("sample_identifier") // AR Number
+  sampleName       String?  @map("sample_name")
+  registrationDate DateTime @map("registration_date") @db.Date
+  sampleCategory   String?  @map("sample_category")   // derived from sampleName
+  batchNumber      String?  @map("batch_number")
+  isWater          Boolean  @default(false) @map("is_water") // sampleName contains "water"
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Link to autoclave source traceability
+  autoclaveSources AutoclaveEntrySource[]
+
+  @@index([reportId, registrationDate])
+  @@map("samples")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MEDIA MASTER  (21 media types)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MediaMaster {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  displayOrder   Int      @map("display_order")
+  quantityPerTube Decimal? @map("quantity_per_tube") @db.Decimal(10, 4) // NULL = CALCULATION_BLOCKED
+  unit           String   @default("gm")
+  formulaKey     String?  @map("formula_key")
+  formula        MediaFormula? @relation(fields: [formulaKey], references: [formulaKey])
+  isConditional  Boolean  @default(false) @map("is_conditional") // e.g. R2A (only when W > 0)
+  active         Boolean  @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  stockOpeningBalances    StockOpeningBalance[]
+  mediaPreparationRecords MediaPreparationRecord[]
+
+  @@map("media_master")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MEDIA FORMULAS  (expression stored as text — no evaluation in SQL)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MediaFormula {
+  id             String   @id @default(cuid())
+  formulaKey     String   @unique @map("formula_key")
+  label          String
+  // e.g. "(S + 1 + 1 + 1) * 2" — three +1 terms preserved exactly as written
+  expressionText String   @map("expression_text")
+  variables      String[] // allowed: S, W, N
+  notes          String?
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedBy   Profile? @relation("FormulaUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  mediaMasters MediaMaster[]
+
+  @@map("media_formulas")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTROL CONFIG  (single active row — PC and NC counts)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ControlConfig {
+  id              String @id @default(cuid())
+  positiveControl Int    @default(1) @map("positive_control")
+  negativeControl Int    @default(1) @map("negative_control")
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedBy   Profile? @relation("ControlConfigUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("control_config")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STOCK OPENING BALANCES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model StockOpeningBalance {
+  id                String  @id @default(cuid())
+  reportId          String  @map("report_id")
+  report            Report  @relation(fields: [reportId], references: [id])
+  mediaId           String  @map("media_id")
+  media             MediaMaster @relation(fields: [mediaId], references: [id])
+  effectiveDate     DateTime @map("effective_date") @db.Date
+  openingBalanceGm  Decimal @map("opening_balance_gm") @db.Decimal(12, 4)
+  // source: initial | carry_forward | edit | refill
+  source            String
+  reason            String?
+
+  createdById String  @map("created_by_id") @db.Uuid
+  createdBy   Profile @relation("SOBCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([reportId, mediaId, effectiveDate])
+  @@map("stock_opening_balances")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MEDIA PREPARATION RECORDS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model MediaPreparationRecord {
+  id                String   @id @default(cuid())
+  reportId          String   @map("report_id")
+  report            Report   @relation(fields: [reportId], references: [id])
+  prepDate          DateTime @map("prep_date") @db.Date
+  mediaId           String   @map("media_id")
+  media             MediaMaster @relation(fields: [mediaId], references: [id])
+
+  samplesCount    Int     @map("samples_count")
+  waterCount      Int     @map("water_count")
+  nonWaterCount   Int     @map("non_water_count")
+  tubePlates      Int     @map("tube_plates")
+  formulaText     String? @map("formula_text")  // snapshot of expression at time of calculation
+
+  openingBalanceGm  Decimal? @map("opening_balance_gm") @db.Decimal(12, 4)
+  quantityUsedGm    Decimal? @map("quantity_used_gm") @db.Decimal(12, 4)
+  quantityOverridden Boolean @default(false) @map("quantity_overridden")
+  overrideReason    String? @map("override_reason")
+  balanceGm         Decimal? @map("balance_gm") @db.Decimal(12, 4)
+
+  // READY | LOW_STOCK | REFILL_REQUIRED | CALCULATION_BLOCKED | COMPLETE
+  status  String
+  usedIn  String[] @map("used_in")
+
+  preparedById String?  @map("prepared_by_id") @db.Uuid
+  preparedBy   Profile? @relation("MediaPreparedBy", fields: [preparedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  refillLogs       RefillLog[]
+  autoclaveSources AutoclaveEntrySource[]
+
+  @@unique([reportId, prepDate, mediaId])
+  @@index([reportId, prepDate])
+  @@map("media_preparation_records")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REFILL LOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model RefillLog {
+  id                  String  @id @default(cuid())
+  mediaPrepRecordId   String  @map("media_prep_record_id")
+  mediaPrepRecord     MediaPreparationRecord @relation(fields: [mediaPrepRecordId], references: [id])
+  previousOpeningGm   Decimal @map("previous_opening_gm") @db.Decimal(12, 4)
+  newOpeningGm        Decimal @map("new_opening_gm") @db.Decimal(12, 4)
+  shortfallGm         Decimal? @map("shortfall_gm") @db.Decimal(12, 4)
+  reason              String  // NOT NULL — required
+
+  createdById String  @map("created_by_id") @db.Uuid
+  createdBy   Profile @relation("RefillCreatedBy", fields: [createdById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("refill_log")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ALERTS
+// alertType values:
+//   Step 1: LOW_STOCK | REFILL_REQUIRED | MISSING_OPENING_BALANCE |
+//            INVALID_EXCEL_DATA | MISSING_SAMPLE_NAME | DUPLICATE_SAMPLE |
+//            CALCULATION_BLOCKED | MISSING_QUANTITY_PER_TUBE
+//   Step 2 (Phase 4 prerequisite — included from start):
+//            AUTOCLAVE_VALIDATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Alert {
+  id           String   @id @default(cuid())
+  reportId     String?  @map("report_id")
+  report       Report?  @relation(fields: [reportId], references: [id])
+  alertType    String   @map("alert_type")
+  // severity: INFO | WARNING | ERROR
+  severity     String
+  message      String
+  relatedTable String?  @map("related_table")
+  relatedId    String?  @map("related_id")
+  resolved     Boolean  @default(false)
+
+  resolvedById String?   @map("resolved_by_id") @db.Uuid
+  resolvedBy   Profile?  @relation("AlertResolvedBy", fields: [resolvedById], references: [id])
+  resolvedAt   DateTime? @map("resolved_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([reportId, alertType, resolved])
+  @@map("alerts")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTOCLAVE SETTINGS  (versioned key/value history)
+// Keys: autoclave_start_time | sterilization_start_time | temperature_c |
+//       pressure_value | pressure_unit | sterilization_duration_minutes |
+//       cycle_grouping_mode | cleaning_first_day | cleaning_second_day |
+//       cleaning_interval_days | allow_select_other_staff |
+//       temperature_min_c | temperature_max_c | pressure_min | pressure_max
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AutoclaveSetting {
+  id            String   @id @default(cuid())
+  key           String
+  value         Json
+  version       Int
+  effectiveFrom DateTime @default(now()) @map("effective_from")
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedBy   Profile? @relation("AutoclaveSettingUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([key, version])
+  @@index([key, effectiveFrom])
+  @@map("autoclave_settings")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTOCLAVE EQUIPMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AutoclaveEquipment {
+  id          String  @id @default(cuid())
+  formatNo    String  @map("format_no")
+  refSopNo    String  @map("ref_sop_no")
+  equipmentNo String  @map("equipment_no")
+  label       String?
+  active      Boolean @default(true)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cleaningSchedules AutoclaveCleaningSchedule[]
+
+  @@map("autoclave_equipment")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOAD TYPES  (Media | Glassware | Plasticware | Apron | Other)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model LoadType {
+  id           String  @id @default(cuid())
+  name         String  @unique
+  active       Boolean @default(true)
+  displayOrder Int     @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  autoclaveLogEntries AutoclaveLogEntry[]
+
+  @@map("load_types")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTOCLAVE LOG ENTRIES
+// One per date per load type. PREFILLED → PENDING_VERIFICATION → VERIFIED.
+// Times stored as "HH:mm" strings (24-hour). Frontend formats to 12-hour.
+//
+// Phase 4 prerequisite: isUserEdited added here from the start.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AutoclaveLogEntry {
+  id             String   @id @default(cuid())
+  reportId       String   @map("report_id")
+  report         Report   @relation(fields: [reportId], references: [id])
+  reportingMonth DateTime @map("reporting_month") @db.Date // first day of month
+  logDate        DateTime @map("log_date") @db.Date
+
+  loadTypeId      String   @map("load_type_id")
+  loadType        LoadType @relation(fields: [loadTypeId], references: [id])
+  loadDescription String   @map("load_description") // e.g. "Media – 01-10-2025 (7 samples)"
+
+  // ── Planned / default values (snapshot of settings at generation time) ──
+  autoclaveStartTime      String  @map("autoclave_start_time")   // "HH:mm"
+  sterilizationStartTime  String  @map("sterilization_start_time") // "HH:mm"
+  temperatureC            Decimal @map("temperature_c") @db.Decimal(5, 2)
+  pressureValue           Decimal @map("pressure_value") @db.Decimal(6, 2)
+  pressureUnit            String  @map("pressure_unit")  // e.g. "LBS" — never converted
+  endTime                 String  @map("end_time")        // "HH:mm" — calculated or overridden
+  endDateOffset           Int     @default(0) @map("end_date_offset") // 1 = next day (midnight crossing)
+  endTimeOverridden       Boolean @default(false) @map("end_time_overridden")
+
+  // ── Actual readings (filled at verification time) ───────────────────────
+  actualTemperatureC Decimal? @map("actual_temperature_c") @db.Decimal(5, 2)
+  actualPressureValue Decimal? @map("actual_pressure_value") @db.Decimal(6, 2)
+  actualPressureUnit  String?  @map("actual_pressure_unit")
+  actualStartTime     String?  @map("actual_start_time")  // "HH:mm"
+  actualEndTime       String?  @map("actual_end_time")    // "HH:mm"
+
+  // ── Status & verification ─────────────────────────────────────────────
+  // PREFILLED | PENDING_VERIFICATION | VERIFIED
+  verificationStatus String  @default("PREFILLED") @map("verification_status")
+
+  // Phase 4 prerequisite — tracks whether any field was user-edited.
+  // Generated/refreshed entries with isUserEdited=true are NEVER overwritten.
+  isUserEdited Boolean @default(false) @map("is_user_edited")
+
+  doneById   String  @map("done_by_id") @db.Uuid
+  doneBy     Profile @relation("EntryDoneBy", fields: [doneById], references: [id])
+
+  verifiedById String?   @map("verified_by_id") @db.Uuid
+  verifiedBy   Profile?  @relation("EntryVerifiedBy", fields: [verifiedById], references: [id])
+  verifiedAt   DateTime? @map("verified_at")
+
+  notes String?
+
+  createdById String  @map("created_by_id") @db.Uuid
+  createdBy   Profile @relation("EntryCreatedBy", fields: [createdById], references: [id])
+
+  updatedById String?  @map("updated_by_id") @db.Uuid
+  updatedBy   Profile? @relation("EntryUpdatedBy", fields: [updatedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  sources AutoclaveEntrySource[]
+
+  @@unique([reportId, logDate, loadTypeId])
+  @@index([reportId, logDate])
+  @@index([reportingMonth])
+  @@index([verificationStatus])
+  @@map("autoclave_log_entries")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTOCLAVE ENTRY SOURCES  (traceability: which samples / media records)
+// At least one of sampleId or mediaPrepRecordId must be non-null.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AutoclaveEntrySource {
+  id      String            @id @default(cuid())
+  entryId String            @map("entry_id")
+  entry   AutoclaveLogEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  sampleId          String?  @map("sample_id")
+  sample            Sample?  @relation(fields: [sampleId], references: [id])
+
+  mediaPrepRecordId String?                 @map("media_prep_record_id")
+  mediaPrepRecord   MediaPreparationRecord? @relation(fields: [mediaPrepRecordId], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entryId])
+  @@map("autoclave_entry_sources")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTOCLAVE CLEANING SCHEDULE
+// OVERDUE is computed at query time, NOT stored.
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AutoclaveCleaningSchedule {
+  id             String             @id @default(cuid())
+  equipmentId    String             @map("equipment_id")
+  equipment      AutoclaveEquipment @relation(fields: [equipmentId], references: [id])
+  reportingMonth DateTime           @map("reporting_month") @db.Date
+
+  scheduledDate DateTime @map("scheduled_date") @db.Date
+  // SCHEDULED | COMPLETED  (OVERDUE computed at query time from scheduledDate < today)
+  status        String   @default("SCHEDULED")
+
+  actualDate   DateTime? @map("actual_date") @db.Date
+  doneById     String?   @map("done_by_id") @db.Uuid
+  doneBy       Profile?  @relation("CleaningDoneBy", fields: [doneById], references: [id])
+  completedAt  DateTime? @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([equipmentId, scheduledDate])
+  @@index([reportingMonth, scheduledDate])
+  @@map("autoclave_cleaning_schedule")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AUDIT LOG  (field-level, immutable — no UPDATE or DELETE allowed)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tableName  String   @map("table_name")
+  recordId   String   @map("record_id")
+  field      String?  // NULL for CREATE / DELETE
+  oldValue   String?  @map("old_value")
+  newValue   String?  @map("new_value")
+  // CREATE | UPDATE | DELETE | EXPORT_MEDIA_EXCEL | EXPORT_MEDIA_PDF |
+  // EXPORT_AUTOCLAVE_EXCEL | EXPORT_AUTOCLAVE_PDF
+  action     String
+  reason     String?
+
+  changedById String?  @map("changed_by_id") @db.Uuid
+  changedBy   Profile? @relation("AuditChangedBy", fields: [changedById], references: [id])
+
+  changedAt DateTime @default(now()) @map("changed_at")
+
+  @@index([tableName, recordId])
+  @@index([changedAt])
+  @@map("audit_log")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT LOG
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ExportLog {
+  id         String  @id @default(cuid())
+  reportId   String? @map("report_id")
+  report     Report? @relation(fields: [reportId], references: [id])
+  // MEDIA_EXCEL | MEDIA_PDF | AUTOCLAVE_EXCEL | AUTOCLAVE_PDF
+  exportType String  @map("export_type")
+
+  exportedById String  @map("exported_by_id") @db.Uuid
+  exportedBy   Profile @relation("ExportBy", fields: [exportedById], references: [id])
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([reportId])
+  @@map("export_log")
+}

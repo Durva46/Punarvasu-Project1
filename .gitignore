@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Production builds & artifacts
+dist/
+*/dist/
+build/
+*/build/
+coverage/
+*/coverage/
+*.tsbuildinfo
+
+# Environment variables & secrets (CRITICAL)
+.env
+.env.*
+!.env.example
+*.env
+*.env.local
+*.env.validation
+
+# Temporary test generation directories
+sample_exports_september_2026/
+
+# System and logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+.vercel/
+.idea/
+.vscode/
