@@ -23,7 +23,12 @@ export const Navbar: React.FC = () => {
   //    - Stage 6: B.O.D. Incubator Log Book for Pathogen (Set Temperature 37° C) (To be provided)
   //    - Stage 7: Colony Counter Log Book (To be provided)
   // 3. Download the report that is generated (Final Review & Downloads)
-  const workflowSteps = [
+  const workflowSteps: Array<{
+    label: string;
+    path: string;
+    type: string;
+    title?: string;
+  }> = [
     { label: "1. Upload & Analysis", path: "/imports", type: "active" },
     { label: "Step 1: Media Preparation", path: "/media", type: "active" },
     { label: "Step 2: Autoclave Log Book", path: "/autoclave", type: "active" },
@@ -31,7 +36,7 @@ export const Navbar: React.FC = () => {
     { label: "Stage 4: B.O.D. Bacteria (30-35°C)", path: "/bod-bacteria", type: "active" },
     { label: "Stage 5: B.O.D. Fungus (20-25°C)", path: "/bod-fungus", type: "active" },
     { label: "Stage 6: B.O.D. Pathogen (37°C)", path: "/bod-pathogen", type: "active" },
-    { label: "Stage 7: Colony Counter", title: "Colony Counter Log Book — To be provided", type: "placeholder" },
+    { label: "Stage 7: Colony Counter", path: "/colony-counter", type: "active" },
     { label: "Download Reports", path: "/reports", type: "active" },
   ];
 

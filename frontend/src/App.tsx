@@ -14,6 +14,7 @@ import { LafPage } from "./pages/LafPage";
 import { BodBacteriaPage } from "./pages/BodBacteriaPage";
 import { BodFungusPage } from "./pages/BodFungusPage";
 import { BodPathogenPage } from "./pages/BodPathogenPage";
+import { ColonyCounterPage } from "./pages/ColonyCounterPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { FinalReviewPage } from "./pages/FinalReviewPage";
@@ -38,6 +39,8 @@ export default function App() {
             <Route path="/stages/5" element={<BodFungusPage />} />
             <Route path="/bod-pathogen" element={<BodPathogenPage />} />
             <Route path="/stages/6" element={<BodPathogenPage />} />
+            <Route path="/colony-counter" element={<ColonyCounterPage />} />
+            <Route path="/stages/7" element={<ColonyCounterPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/autoclave" element={<AutoclaveSettingsPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
