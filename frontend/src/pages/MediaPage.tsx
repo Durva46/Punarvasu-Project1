@@ -382,7 +382,7 @@ export const MediaPage: React.FC = () => {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3">
           <div className="flex items-center gap-3">
             <label className="text-xs font-bold text-gray-700 uppercase tracking-wide">
-              Selected Sample Date:
+              Media Preparation Date:
             </label>
             <select
               value={selectedDateIso}
@@ -390,7 +390,7 @@ export const MediaPage: React.FC = () => {
                 setSelectedDateIso(e.target.value);
                 localStorage.setItem("labflow_selected_date", e.target.value);
               }}
-              className="text-xs font-bold border border-gray-300 rounded px-3 py-1.5 bg-white shadow-xs focus:ring-1 focus:ring-blue-500 focus:outline-none"
+              className="text-xs font-bold border border-gray-300 rounded px-3 py-1.5 bg-white shadow-xs focus:ring-1 focus:ring-blue-500 focus:outline-none text-blue-700"
             >
               {availableDays.map((d) => (
                 <option key={d.date} value={d.date}>
@@ -453,21 +453,28 @@ export const MediaPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Samples registered today */}
-        {currentDay && currentDay.sampleNames.length > 0 && (
-          <div className="text-xs text-gray-600 bg-gray-50 p-2.5 rounded border border-gray-200 flex flex-wrap items-center gap-1.5">
-            <span className="font-semibold text-gray-700">Samples tested today:</span>
-            {currentDay.sampleNames.map((name, idx) => (
-              <span
-                key={idx}
-                className="inline-flex items-center px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-800 text-[11px]"
-              >
-                {name}
-                {name.toLowerCase().includes("water") && (
-                  <span className="ml-1 text-[9px] font-bold text-blue-600">(Water)</span>
-                )}
+        {/* Media Preparation Date and Samples Tested */}
+        {currentDay && (
+          <div className="text-xs text-gray-700 bg-gray-50 p-3 rounded border border-gray-200 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="font-bold text-gray-900 bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+                Media Preparation Date: {currentDay.displayDate}
               </span>
-            ))}
+              <span className="font-semibold text-gray-600 ml-2">
+                Samples tested on this date ({currentDay.sampleNames.length}):
+              </span>
+              {currentDay.sampleNames.map((name, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center px-2 py-0.5 rounded bg-white border border-gray-300 text-gray-800 text-[11px]"
+                >
+                  {name}
+                  {name.toLowerCase().includes("water") && (
+                    <span className="ml-1 text-[9px] font-bold text-blue-600">(Water)</span>
+                  )}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
