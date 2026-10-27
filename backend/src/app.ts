@@ -52,9 +52,14 @@ export function createApp(): express.Application {
     next();
   });
 
-  // ── Health check ───────────────────────────────────────────────────────
-  app.get("/api/health", (_req: Request, res: Response) => {
-    res.json({ status: "ok", ts: new Date().toISOString() });
+  // ── Health check & Root ────────────────────────────────────────────────
+  app.get(["/", "/api", "/api/health"], (_req: Request, res: Response) => {
+    res.json({
+      name: "PETLAD MAHAL AROGYA MANDAL PHARMACY — LabFlow API",
+      status: "ok",
+      version: "1.0.0",
+      ts: new Date().toISOString()
+    });
   });
 
   // ── Feature routers (/api/v1) ──────────────────────────────────────────
