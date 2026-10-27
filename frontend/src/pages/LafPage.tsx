@@ -143,7 +143,7 @@ export const LafPage: React.FC = () => {
               uvBurningHours: "20 mins", // 20 mins UV burning
               sampleCount: count,
               endTime: calculateDefaultEndTime(count),
-              cleaningRecord: "Cleaned with 70% IPA & Ready",
+              cleaningRecord: "Cleaned daily (70% IPA)",
               doneBy: defaultStaff,
               checkedBy: "QC Chemist",
             };
@@ -171,7 +171,7 @@ export const LafPage: React.FC = () => {
         uvBurningHours: "20 mins",
         sampleCount: 2,
         endTime: "03:30 PM", // < 5 samples -> 3:30 PM
-        cleaningRecord: "Cleaned with 70% IPA & Ready",
+        cleaningRecord: "Cleaned daily (70% IPA)",
         doneBy: defaultStaff,
         checkedBy: "QC Chemist",
       },
@@ -186,7 +186,7 @@ export const LafPage: React.FC = () => {
         uvBurningHours: "20 mins",
         sampleCount: 5,
         endTime: "04:00 PM", // == 5 samples -> 4:00 PM
-        cleaningRecord: "Cleaned with 70% IPA & Ready",
+        cleaningRecord: "Cleaned daily (70% IPA)",
         doneBy: defaultStaff,
         checkedBy: "QC Chemist",
       },
@@ -201,7 +201,7 @@ export const LafPage: React.FC = () => {
         uvBurningHours: "20 mins",
         sampleCount: 7,
         endTime: "05:00 PM", // > 5 samples -> 5:00 PM
-        cleaningRecord: "Cleaned with 70% IPA & Ready",
+        cleaningRecord: "Cleaned daily (70% IPA)",
         doneBy: defaultStaff,
         checkedBy: "QC Chemist",
       },
@@ -446,12 +446,16 @@ export const LafPage: React.FC = () => {
 
                   {/* Cleaning Record */}
                   <td className="px-3 py-2.5">
-                    <input
-                      type="text"
-                      value={row.cleaningRecord}
-                      onChange={(e) => handleUpdateField(row.id, "cleaningRecord", e.target.value)}
-                      className="w-full text-xs border border-gray-300 rounded px-1.5 py-1 text-gray-700 focus:ring-1 focus:ring-blue-500"
-                    />
+                    <div className="flex items-center gap-1.5">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Everyday Cleaning Active"></span>
+                      <input
+                        type="text"
+                        value={row.cleaningRecord}
+                        onChange={(e) => handleUpdateField(row.id, "cleaningRecord", e.target.value)}
+                        className="w-full text-xs border border-gray-300 rounded px-1.5 py-1 text-gray-800 font-medium bg-emerald-50/20 focus:ring-1 focus:ring-blue-500"
+                        placeholder="Cleaned daily (70% IPA)"
+                      />
+                    </div>
                   </td>
 
                   {/* Done By */}
