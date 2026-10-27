@@ -27,7 +27,7 @@ export const Navbar: React.FC = () => {
     { label: "1. Upload & Analysis", path: "/imports", type: "active" },
     { label: "Step 1: Media Preparation", path: "/media", type: "active" },
     { label: "Step 2: Autoclave Log Book", path: "/autoclave", type: "active" },
-    { label: "Stage 3: LAF Log Book", title: "LAF Log Book — To be provided", type: "placeholder" },
+    { label: "Stage 3: LAF Log Book", path: "/laf", type: "active" },
     { label: "Stage 4: B.O.D. Bacteria (30-35°C)", title: "B.O.D. Incubator Log Book for Bacteria (Set Temperature 30-35° C) — To be provided", type: "placeholder" },
     { label: "Stage 5: B.O.D. Fungus (20-25°C)", title: "B.O.D. Incubator Log Book for Fungus (Set Temperature 20-25° C) — To be provided", type: "placeholder" },
     { label: "Stage 6: B.O.D. Pathogen (37°C)", title: "B.O.D. Incubator Log Book for Pathogen (Set Temperature 37° C) — To be provided", type: "placeholder" },
