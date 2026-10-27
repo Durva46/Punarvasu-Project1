@@ -124,9 +124,13 @@ export const LafPage: React.FC = () => {
         if (days.length > 0) {
           setSelectedMonth(days[0].displayDate.slice(3));
 
-          // Generate one LAF entry per sample date (with date set to next day)
+          // Generate one LAF entry per sample date using the next date from the uploaded Excel sheet
           const gen: LafEntry[] = days.map((d, index) => {
-            const nextDayDate = getNextDay(d.displayDate);
+            // If there is a next registered date in the uploaded Excel list, use that; otherwise calculate next day
+            const nextDayDate = index + 1 < days.length
+              ? days[index + 1].displayDate
+              : getNextDay(d.displayDate);
+
             const count = d.total || 1;
             const productNamesJoined = d.sampleNames && d.sampleNames.length > 0
               ? d.sampleNames.join(", ")
@@ -135,7 +139,7 @@ export const LafPage: React.FC = () => {
             return {
               id: `laf-${d.date}-${index}`,
               sourceDate: d.displayDate,
-              date: nextDayDate, // Next day / second day of test request
+              date: nextDayDate, // Set to the next date from the uploaded Excel sheet
               startTime: "02:00 PM", // 2:00 PM starting time
               productName: productNamesJoined,
               batchNo: `B-${nextDayDate.slice(0, 2)}${nextDayDate.slice(3, 5)}`,
