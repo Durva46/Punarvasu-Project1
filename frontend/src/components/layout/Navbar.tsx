@@ -30,7 +30,7 @@ export const Navbar: React.FC = () => {
     { label: "Stage 3: LAF Log Book", path: "/laf", type: "active" },
     { label: "Stage 4: B.O.D. Bacteria (30-35°C)", path: "/bod-bacteria", type: "active" },
     { label: "Stage 5: B.O.D. Fungus (20-25°C)", path: "/bod-fungus", type: "active" },
-    { label: "Stage 6: B.O.D. Pathogen (37°C)", title: "B.O.D. Incubator Log Book for Pathogen (Set Temperature 37° C) — To be provided", type: "placeholder" },
+    { label: "Stage 6: B.O.D. Pathogen (37°C)", path: "/bod-pathogen", type: "active" },
     { label: "Stage 7: Colony Counter", title: "Colony Counter Log Book — To be provided", type: "placeholder" },
     { label: "Download Reports", path: "/reports", type: "active" },
   ];

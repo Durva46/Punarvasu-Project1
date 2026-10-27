@@ -13,6 +13,7 @@ import { AutoclaveSettingsPage } from "./pages/AutoclaveSettingsPage";
 import { LafPage } from "./pages/LafPage";
 import { BodBacteriaPage } from "./pages/BodBacteriaPage";
 import { BodFungusPage } from "./pages/BodFungusPage";
+import { BodPathogenPage } from "./pages/BodPathogenPage";
 import { AlertsPage } from "./pages/AlertsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { FinalReviewPage } from "./pages/FinalReviewPage";
@@ -35,6 +36,8 @@ export default function App() {
             <Route path="/stages/4" element={<BodBacteriaPage />} />
             <Route path="/bod-fungus" element={<BodFungusPage />} />
             <Route path="/stages/5" element={<BodFungusPage />} />
+            <Route path="/bod-pathogen" element={<BodPathogenPage />} />
+            <Route path="/stages/6" element={<BodPathogenPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/autoclave" element={<AutoclaveSettingsPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
