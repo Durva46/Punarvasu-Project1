@@ -103,7 +103,16 @@ export const LafPage: React.FC = () => {
 
     if (cachedLaf) {
       try {
-        setEntries(JSON.parse(cachedLaf));
+        const parsed = JSON.parse(cachedLaf);
+        // Ensure cleaningRecord displays "Everyday cleaning done"
+        const updated = parsed.map((item: LafEntry) => ({
+          ...item,
+          cleaningRecord:
+            !item.cleaningRecord || item.cleaningRecord.includes("70%")
+              ? "Everyday cleaning done"
+              : item.cleaningRecord,
+        }));
+        setEntries(updated);
         const m = localStorage.getItem("labflow_current_month");
         if (m) setSelectedMonth(m);
         return;
@@ -352,7 +361,7 @@ export const LafPage: React.FC = () => {
                 <th className="px-3 py-3 text-center w-28">UV Burning</th>
                 <th className="px-3 py-3 text-center w-20">Samples</th>
                 <th className="px-3 py-3 text-center w-28">End Time</th>
-                <th className="px-3 py-3 text-left w-36">Cleaning Record</th>
+                <th className="px-3 py-3 text-left w-48">Cleaning Record</th>
                 <th className="px-3 py-3 text-left w-32">Done By</th>
                 <th className="px-3 py-3 text-left w-32">Checked By</th>
                 <th className="px-2 py-3 text-center w-12">Action</th>
@@ -450,13 +459,13 @@ export const LafPage: React.FC = () => {
 
                   {/* Cleaning Record */}
                   <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Everyday Cleaning Active"></span>
+                    <div className="flex items-center gap-1.5 min-w-[175px]">
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 shrink-0" title="Everyday Cleaning Done"></span>
                       <input
                         type="text"
-                        value={row.cleaningRecord}
+                        value={row.cleaningRecord || "Everyday cleaning done"}
                         onChange={(e) => handleUpdateField(row.id, "cleaningRecord", e.target.value)}
-                        className="w-full text-xs border border-gray-300 rounded px-1.5 py-1 text-gray-800 font-medium bg-emerald-50/20 focus:ring-1 focus:ring-blue-500"
+                        className="w-full text-xs border border-gray-300 rounded px-2 py-1 text-gray-800 font-medium bg-emerald-50/20 focus:ring-1 focus:ring-blue-500"
                         placeholder="Everyday cleaning done"
                       />
                     </div>
