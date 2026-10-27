@@ -13,13 +13,12 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
 
   const mainNavItems = [
-    { label: "Excel Upload", path: "/imports", disabled: false },
-    { label: "Media Preparation", path: "/media", disabled: false },
-    { label: "Autoclave Log Book", path: "/autoclave", disabled: false },
+    { label: "1. Excel Upload & Counts", path: "/imports", disabled: false },
+    { label: "Stage 1: Media Preparation", path: "/media", disabled: false },
+    { label: "Stage 2: Autoclave Log", path: "/autoclave", disabled: false },
     { label: "Final Review & Downloads", path: "/reports", disabled: false },
     { label: "Alerts", path: "/alerts", disabled: false },
     { label: "Settings", path: "/settings", disabled: false },
-    { label: "Autoclave Settings", path: "/settings/autoclave", disabled: false },
   ];
 
   const disabledStages = [
@@ -35,7 +34,7 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo / Unit Identity */}
-          <Link to="/media" className="flex items-center space-x-3">
+          <Link to="/imports" className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
               PM
             </div>

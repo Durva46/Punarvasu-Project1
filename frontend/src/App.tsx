@@ -6,6 +6,7 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Navbar } from "./components/layout/Navbar";
+import { ExcelUploadPage } from "./pages/ExcelUploadPage";
 import { MediaPage } from "./pages/MediaPage";
 import { AutoclavePage } from "./pages/AutoclavePage";
 import { AutoclaveSettingsPage } from "./pages/AutoclaveSettingsPage";
@@ -30,17 +31,17 @@ export default function App() {
         <Navbar />
         <main className="flex-1">
           <Routes>
-            <Route path="/" element={<Navigate to="/autoclave" replace />} />
+            <Route path="/" element={<Navigate to="/imports" replace />} />
+            <Route path="/imports" element={<ExcelUploadPage />} />
             <Route path="/media" element={<MediaPage />} />
             <Route path="/autoclave" element={<AutoclavePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/settings/autoclave" element={<AutoclaveSettingsPage />} />
             <Route path="/alerts" element={<AlertsPage />} />
-            <Route path="/imports" element={<PlaceholderPage title="Monthly Excel Upload (Imports)" />} />
             <Route path="/reports" element={<FinalReviewPage />} />
             <Route path="/final-review" element={<FinalReviewPage />} />
             <Route path="/print" element={<PrintViewPage />} />
-            <Route path="*" element={<Navigate to="/autoclave" replace />} />
+            <Route path="*" element={<Navigate to="/imports" replace />} />
           </Routes>
         </main>
       </div>
