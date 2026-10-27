@@ -15,15 +15,6 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { FinalReviewPage } from "./pages/FinalReviewPage";
 import { PrintViewPage } from "./pages/PrintViewPage";
 
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-      <h2 className="text-xl font-bold text-gray-800">{title}</h2>
-      <p className="text-sm text-gray-500 mt-2">Downloads are available in Final Review & Downloads (Phase 7).</p>
-    </div>
-  );
-}
-
 export default function App() {
   return (
     <BrowserRouter>

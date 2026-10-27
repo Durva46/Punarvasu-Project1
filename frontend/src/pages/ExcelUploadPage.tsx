@@ -27,7 +27,7 @@ export const ExcelUploadPage: React.FC = () => {
   const [uploading, setUploading] = useState<boolean>(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [recentReports, setRecentReports] = useState<ImportSummary[]>([]);
-  const [loadingReports, setLoadingReports] = useState<boolean>(true);
+  const [, setLoadingReports] = useState<boolean>(true);
   const [activeReport, setActiveReport] = useState<ImportSummary | null>(null);
   const [dailyCounts, setDailyCounts] = useState<DailyCount[]>([]);
   const [loadingCounts, setLoadingCounts] = useState<boolean>(false);
@@ -90,7 +90,7 @@ export const ExcelUploadPage: React.FC = () => {
 
       // Upload using fetch
       const token = localStorage.getItem("auth_token") || "";
-      const baseUrl = import.meta.env.VITE_API_BASE_URL || "";
+      const baseUrl = ((import.meta as any).env?.VITE_API_BASE_URL || "").replace(/\/$/, "");
       const res = await fetch(`${baseUrl}/api/v1/imports/upload`, {
         method: "POST",
         headers: {

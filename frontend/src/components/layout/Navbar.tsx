@@ -12,22 +12,27 @@ import { Link, useLocation } from "react-router-dom";
 export const Navbar: React.FC = () => {
   const location = useLocation();
 
-  // Exactly the ordered workflow requested by user:
-  // 1. Upload Excel & Analysis
-  // 2. Step 1: Media Preparation
-  // 3. Step 2: Autoclave Log Book (Sterilization)
-  // 4. Stages 3-7: To be provided
-  // 5. Download Generated Report (Final Review)
+  // Workflow requested by user:
+  // 1. Upload Excel sheet & analysis
+  // 2. Perform the 7 steps:
+  //    - Step 1: Media Preparation
+  //    - Step 2: Autoclave Log Book (Sterilization)
+  //    - Stage 3: LAF Log Book (To be provided)
+  //    - Stage 4: B.O.D. Incubator Log Book for Bacteria (Set Temperature 30-35° C) (To be provided)
+  //    - Stage 5: B.O.D. Incubator Log Book for Fungus (Set Temperature 20-25° C) (To be provided)
+  //    - Stage 6: B.O.D. Incubator Log Book for Pathogen (Set Temperature 37° C) (To be provided)
+  //    - Stage 7: Colony Counter Log Book (To be provided)
+  // 3. Download the report that is generated (Final Review & Downloads)
   const workflowSteps = [
-    { label: "Upload & Analysis", path: "/imports", type: "active", step: "1" },
-    { label: "Step 1: Media Preparation", path: "/media", type: "active", step: "2" },
-    { label: "Step 2: Autoclave Log Book", path: "/autoclave", type: "active", step: "3" },
-    { label: "Stage 3: LAF Log", title: "LAF Log Book (To be provided)", type: "placeholder" },
+    { label: "1. Upload & Analysis", path: "/imports", type: "active" },
+    { label: "Step 1: Media Preparation", path: "/media", type: "active" },
+    { label: "Step 2: Autoclave Log Book", path: "/autoclave", type: "active" },
+    { label: "Stage 3: LAF Log Book", title: "LAF Log Book — To be provided", type: "placeholder" },
     { label: "Stage 4: B.O.D. Bacteria (30-35°C)", title: "B.O.D. Incubator Log Book for Bacteria (Set Temperature 30-35° C) — To be provided", type: "placeholder" },
     { label: "Stage 5: B.O.D. Fungus (20-25°C)", title: "B.O.D. Incubator Log Book for Fungus (Set Temperature 20-25° C) — To be provided", type: "placeholder" },
     { label: "Stage 6: B.O.D. Pathogen (37°C)", title: "B.O.D. Incubator Log Book for Pathogen (Set Temperature 37° C) — To be provided", type: "placeholder" },
     { label: "Stage 7: Colony Counter", title: "Colony Counter Log Book — To be provided", type: "placeholder" },
-    { label: "Download Reports", path: "/reports", type: "active", step: "Final" },
+    { label: "Download Reports", path: "/reports", type: "active" },
   ];
 
   return (
