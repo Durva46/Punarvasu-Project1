@@ -191,11 +191,11 @@ export const AutoclavePage: React.FC = () => {
           loadTypeName: "Media",
           loadDescription: sampleDesc,
           autoclaveStartTime: "11:00",
-          sterilizationStartTime: "11:10",
+          sterilizationStartTime: "12:00", // 1 hr after autoclave start time
           temperatureC: 121,
           pressureValue: 15,
           pressureUnit: "LBS",
-          endTime: "11:25",
+          endTime: "12:15", // 15 min after sterilization start time
           endDateOffset: 0,
           endTimeOverridden: false,
           actualTemperatureC: null,

@@ -323,7 +323,7 @@ async function main() {
     notes?: string;
   }> = [
     { key: "autoclave_start_time",          value: "11:00",                notes: "HH:mm 24h" },
-    { key: "sterilization_start_time",      value: "11:10",                notes: "HH:mm 24h" },
+    { key: "sterilization_start_time",      value: "12:00",                notes: "HH:mm 24h (1 hr after autoclave start)" },
     { key: "temperature_c",                 value: 121 },
     { key: "pressure_value",                value: 15 },
     { key: "pressure_unit",                 value: "LBS" },

@@ -49,7 +49,7 @@ export function buildDefaultsFromSettings(
   snapshot: AutoclaveSettingsSnapshot
 ): AutoclavePlannedDefaults {
   const autoclaveStartTime = snapshot.autoclave_start_time ?? "11:00";
-  const sterilizationStartTime = snapshot.sterilization_start_time ?? "11:10";
+  const sterilizationStartTime = snapshot.sterilization_start_time ?? "12:00"; // 1 hr after autoclave start time
   const temperatureC = snapshot.temperature_c ?? 121;
   const pressureValue = snapshot.pressure_value ?? 15;
   const pressureUnit = snapshot.pressure_unit ?? "LBS";

@@ -23,7 +23,7 @@ export const AutoclaveSettingsPage: React.FC = () => {
 
   // Form states
   const [startTime, setStartTime] = useState<string>("11:00");
-  const [sterStart, setSterStart] = useState<string>("11:10");
+  const [sterStart, setSterStart] = useState<string>("12:00");
   const [tempC, setTempC] = useState<number>(121);
   const [pressureVal, setPressureVal] = useState<number>(15);
   const [pressureUnit, setPressureUnit] = useState<string>("LBS");
@@ -53,7 +53,7 @@ export const AutoclaveSettingsPage: React.FC = () => {
 
       const s = settingsRes.settings;
       setStartTime(s.autoclave_start_time ?? "11:00");
-      setSterStart(s.sterilization_start_time ?? "11:10");
+      setSterStart(s.sterilization_start_time ?? "12:00");
       setTempC(s.temperature_c ?? 121);
       setPressureVal(s.pressure_value ?? 15);
       setPressureUnit(s.pressure_unit ?? "LBS");
