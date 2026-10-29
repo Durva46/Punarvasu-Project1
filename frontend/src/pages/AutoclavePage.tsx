@@ -584,11 +584,11 @@ export const AutoclavePage: React.FC = () => {
                       {row.logDate}
                     </td>
 
-                    {/* Name of Cycle Load - Inline Editable with Preset Suggestions */}
-                    <td className="px-3.5 py-3">
-                      <div className="space-y-1">
-                        <textarea
-                          rows={2}
+                    {/* Name of Cycle Load - Inline Editable Input */}
+                    <td className="px-3.5 py-3 min-w-[280px]">
+                      <div className="space-y-1.5">
+                        <input
+                          type="text"
                           value={row.loadDescription}
                           onChange={(e) => {
                             const newDesc = e.target.value;
@@ -600,10 +600,10 @@ export const AutoclavePage: React.FC = () => {
                               )
                             );
                           }}
-                          className="w-full text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-white focus:ring-1 focus:ring-blue-500"
-                          placeholder="Cycle items: Media, Glassware - Plates, Plasticware- Tips, Spatulas and Apron..."
+                          className="w-full text-xs border border-gray-300 rounded px-2.5 py-1.5 font-medium text-gray-900 bg-white focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                          placeholder="Type any cycle name / items here..."
                         />
-                        <div className="flex flex-wrap items-center gap-1">
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
                             onClick={() => {
@@ -616,34 +616,12 @@ export const AutoclavePage: React.FC = () => {
                                 )
                               );
                             }}
-                            className="text-[10px] text-blue-700 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200"
-                            title="Reset to default cycle load names"
+                            className="text-[10px] text-blue-600 hover:text-blue-800 underline"
                           >
-                            + Reset Default
+                            Reset to default items
                           </button>
-                          {["+ Beakers", "+ Pipettes", "+ Flasks", "+ Biohazard Waste"].map((extra) => (
-                            <button
-                              key={extra}
-                              type="button"
-                              onClick={() => {
-                                const addition = extra.replace("+ ", "");
-                                const current = row.loadDescription;
-                                const updated = current.includes(addition)
-                                  ? current
-                                  : `${current}, ${addition}`;
-                                setEntries((prev) =>
-                                  prev.map((item) =>
-                                    item.id === row.id
-                                      ? { ...item, loadDescription: updated, isUserEdited: true }
-                                      : item
-                                  )
-                                );
-                              }}
-                              className="text-[10px] text-gray-600 bg-gray-100 hover:bg-gray-200 px-1.5 py-0.5 rounded"
-                            >
-                              {extra}
-                            </button>
-                          ))}
+                          <span className="text-gray-300">|</span>
+                          <span className="text-[10px] text-gray-400">Freely editable</span>
                         </div>
                       </div>
                     </td>
