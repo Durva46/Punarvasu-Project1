@@ -121,41 +121,55 @@ export const LafPage: React.FC = () => {
         if (days.length > 0) {
           setSelectedMonth(days[0].displayDate.slice(3));
 
-          // Generate one LAF entry per sample date using the next date from the uploaded Excel sheet
-          const gen: LafEntry[] = days.map((d, index) => {
-            // If there is a next registered date in the uploaded Excel list, use that; otherwise calculate next day
-            const rawNextDate = index + 1 < days.length
-              ? days[index + 1].displayDate
+          // Generate LAF entries - one entry per individual sample from the uploaded Excel sheet
+          const gen: LafEntry[] = [];
+          days.forEach((d, dayIndex) => {
+            const rawNextDate = dayIndex + 1 < days.length
+              ? days[dayIndex + 1].displayDate
               : getNextDay(d.displayDate);
-            // Ensure any Friday is skipped to Saturday
             const parsedObj = parseDMY(rawNextDate);
             const nextDayDate = parsedObj ? formatToDMY(skipFriday(parsedObj)) : rawNextDate;
 
-            const count = d.total || 1;
-            const productNamesJoined = d.sampleNames && d.sampleNames.length > 0
-              ? d.sampleNames.join(", ")
-              : "Finished Product / Material";
+            const daySampleCount = d.total || (d.samples ? d.samples.length : 1);
+            const defaultEndTimeForDay = calculateDefaultEndTime(daySampleCount);
 
-            // Use the real batch number from uploaded sheet if present
-            const uploadedBatch = d.samples && d.samples.length > 0 && d.samples[0].batchNo
-              ? d.samples.map((s) => s.batchNo).filter(Boolean).join(", ")
-              : `B-${nextDayDate.slice(0, 2)}${nextDayDate.slice(3, 5)}`;
-
-            return {
-              id: `laf-${d.date}-${index}`,
-              sourceDate: d.displayDate,
-              date: nextDayDate, // Set to the next date from the uploaded Excel sheet
-              startTime: "02:00 PM", // 2:00 PM starting time
-              productName: productNamesJoined,
-              batchNo: uploadedBatch,
-              manometerReadingMm: 11, // 11 mm manometer reading
-              uvBurningHours: "20 mins", // 20 mins UV burning
-              sampleCount: count,
-              endTime: calculateDefaultEndTime(count),
-              cleaningRecord: "Everyday cleaning done",
-              doneBy: defaultStaff,
-              checkedBy: "QC Chemist",
-            };
+            if (d.samples && d.samples.length > 0) {
+              d.samples.forEach((sample, sIdx) => {
+                gen.push({
+                  id: `laf-${d.date}-${dayIndex}-${sIdx}`,
+                  sourceDate: d.displayDate,
+                  date: nextDayDate,
+                  startTime: "02:00 PM",
+                  productName: sample.sampleName,
+                  batchNo: sample.batchNo || "-",
+                  manometerReadingMm: 11,
+                  uvBurningHours: "20 mins",
+                  sampleCount: 1,
+                  endTime: defaultEndTimeForDay,
+                  cleaningRecord: "Everyday cleaning done",
+                  doneBy: defaultStaff,
+                  checkedBy: "QC Chemist",
+                });
+              });
+            } else {
+              (d.sampleNames || ["Standard Sample"]).forEach((name, sIdx) => {
+                gen.push({
+                  id: `laf-${d.date}-${dayIndex}-${sIdx}`,
+                  sourceDate: d.displayDate,
+                  date: nextDayDate,
+                  startTime: "02:00 PM",
+                  productName: name,
+                  batchNo: "-",
+                  manometerReadingMm: 11,
+                  uvBurningHours: "20 mins",
+                  sampleCount: 1,
+                  endTime: defaultEndTimeForDay,
+                  cleaningRecord: "Everyday cleaning done",
+                  doneBy: defaultStaff,
+                  checkedBy: "QC Chemist",
+                });
+              });
+            }
           });
 
           setEntries(gen);

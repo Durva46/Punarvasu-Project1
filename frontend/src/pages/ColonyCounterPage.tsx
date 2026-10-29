@@ -128,27 +128,36 @@ export const ColonyCounterPage: React.FC = () => {
         if (days.length > 0) {
           setSelectedMonth(days[0].displayDate.slice(3));
 
-          const generated: ColonyCounterEntry[] = days.map((d, idx) => {
+          const generated: ColonyCounterEntry[] = [];
+          days.forEach((d, dayIdx) => {
             const lafDate = lafMap.get(d.displayDate) || addDays(d.displayDate, 1);
             const bodEndDate = addDays(lafDate, 5); // 5 days after B.O.D. start
 
-            const allSampleNames = d.sampleNames && d.sampleNames.length > 0
-              ? d.sampleNames.join(", ")
-              : "Standard Samples";
-
-            const uploadedBatch = d.samples && d.samples.length > 0
-              ? d.samples.map((s) => s.batchNo).filter(Boolean).join(", ")
-              : `B-${bodEndDate.slice(0, 2)}${bodEndDate.slice(3, 5)}`;
-
-            return {
-              id: `colony-${d.date}-${idx}`,
-              sourceDate: lafDate,
-              date: bodEndDate, // End date of B.O.D. as the colony counter date
-              productName: allSampleNames,
-              batchNo: uploadedBatch,
-              cleaning: "Everyday cleaning done",
-              doneBy: defaultStaff,
-            };
+            if (d.samples && d.samples.length > 0) {
+              d.samples.forEach((sample, sIdx) => {
+                generated.push({
+                  id: `colony-${d.date}-${dayIdx}-${sIdx}`,
+                  sourceDate: lafDate,
+                  date: bodEndDate,
+                  productName: sample.sampleName,
+                  batchNo: sample.batchNo || "-",
+                  cleaning: "Everyday cleaning done",
+                  doneBy: defaultStaff,
+                });
+              });
+            } else {
+              (d.sampleNames || ["Standard Sample"]).forEach((name, sIdx) => {
+                generated.push({
+                  id: `colony-${d.date}-${dayIdx}-${sIdx}`,
+                  sourceDate: lafDate,
+                  date: bodEndDate,
+                  productName: name,
+                  batchNo: "-",
+                  cleaning: "Everyday cleaning done",
+                  doneBy: defaultStaff,
+                });
+              });
+            }
           });
 
           setEntries(generated);
