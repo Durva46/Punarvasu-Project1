@@ -170,8 +170,37 @@ export const ExcelUploadPage: React.FC = () => {
       // Save analyzed data locally for workflow continuity (Steps 1 & 2)
       localStorage.setItem("labflow_analyzed_daily", JSON.stringify(sortedDates));
       localStorage.setItem("labflow_total_samples", String(validCount));
+      localStorage.setItem("labflow_active_filename", fileToAnalyze.name);
       if (sortedDates.length > 0) {
         localStorage.setItem("labflow_current_month", sortedDates[0].displayDate.slice(3));
+      }
+
+      // Record in local sheet registry for dashboard tracking
+      try {
+        const monthKey = sortedDates.length > 0 ? sortedDates[0].displayDate.slice(3) : "Current";
+        const sheetRecId = `sheet-${Date.now()}`;
+        const newRecord = {
+          id: sheetRecId,
+          reportingMonth: monthKey,
+          fileName: fileToAnalyze.name,
+          uploadedAt: new Date().toISOString(),
+          totalSamples: validCount,
+          waterSamples: sortedDates.reduce((acc, curr) => acc + (curr.water || 0), 0),
+          nonWaterSamples: sortedDates.reduce((acc, curr) => acc + (curr.nonWater || 0), 0),
+          totalDates: sortedDates.length,
+          dailyGroups: sortedDates,
+          status: "ANALYZED",
+        };
+
+        const existingRaw = localStorage.getItem("labflow_sheet_registry");
+        let regList = existingRaw ? JSON.parse(existingRaw) : [];
+        // Avoid duplicate by filename & month
+        regList = regList.filter((r: any) => r.fileName !== fileToAnalyze.name);
+        regList.unshift(newRecord);
+        localStorage.setItem("labflow_sheet_registry", JSON.stringify(regList));
+        localStorage.setItem("labflow_selected_sheet_id", sheetRecId);
+      } catch (regErr) {
+        console.warn("Could not register sheet to dashboard registry:", regErr);
       }
 
       return sortedDates;

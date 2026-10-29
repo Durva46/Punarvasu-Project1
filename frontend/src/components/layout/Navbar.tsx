@@ -29,6 +29,7 @@ export const Navbar: React.FC = () => {
     type: string;
     title?: string;
   }> = [
+    { label: "Dashboard", path: "/dashboard", type: "active" },
     { label: "1. Upload & Analysis", path: "/imports", type: "active" },
     { label: "Step 1: Media Preparation", path: "/media", type: "active" },
     { label: "Step 2: Autoclave Log Book", path: "/autoclave", type: "active" },
@@ -45,7 +46,7 @@ export const Navbar: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           {/* Logo / Unit Identity */}
-          <Link to="/imports" className="flex items-center space-x-3">
+          <Link to="/dashboard" className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center text-white font-bold text-sm shadow-sm">
               PM
             </div>
