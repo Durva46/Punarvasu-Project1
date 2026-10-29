@@ -103,9 +103,9 @@ export const ExcelUploadPage: React.FC = () => {
       const sampleKeys = ["sample name", "samplename", "name of sample", "product", "material"];
       const dateKeys = ["test request date", "date", "registration date", "request date", "received date", "sampling date"];
       const idKeys = ["ar number", "ar no", "sample id", "arnumber", "identifier", "sample identifier"];
-      const batchKeys = ["batch number", "batch no", "b.no", "batch", "bno", "lot number", "lot no"];
-      const mfgKeys = ["mfg date", "mfg. date", "mfg", "manufacturing date", "date of mfg", "date of manufacturing"];
-      const expKeys = ["exp date", "exp. date", "exp", "expiry date", "date of expiry", "expiration date"];
+      const batchKeys = ["batch number", "batch no", "b.no", "batch", "bno", "lot number", "lot no", "b. no", "b. no."];
+      const mfgKeys = ["mfg date", "mfg. date", "mfg", "manufacturing date", "date of mfg", "date of manufacturing", "mfg dt", "mfg. dt"];
+      const expKeys = ["exp date", "exp. date", "exp", "expiry date", "date of expiry", "expiration date", "exp dt", "exp. dt"];
 
       const allRowKeys = Object.keys(rawRows[0] || {});
       const findKey = (candidates: string[]): string | undefined => {
@@ -487,20 +487,29 @@ export const ExcelUploadPage: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200 text-sm">
                 <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-600 w-36">Date</th>
-                    <th className="px-4 py-3 text-center font-semibold text-gray-600 w-28">
-                      Total Samples (S)
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600 w-28">Date</th>
+                    <th className="px-3 py-3 text-center font-semibold text-gray-600 w-20">
+                      Total (S)
                     </th>
-                    <th className="px-6 py-3 text-left font-semibold text-gray-600">
-                      Sample Details (Sample Name, Batch No, Mfg & Exp Date)
+                    <th className="px-4 py-3 text-left font-semibold text-gray-600 min-w-[200px]">
+                      Sample Name
                     </th>
-                    <th className="px-4 py-3 text-center font-semibold text-emerald-700 w-28">
+                    <th className="px-3 py-3 text-left font-semibold text-gray-600 w-28">
+                      Batch No.
+                    </th>
+                    <th className="px-3 py-3 text-center font-semibold text-gray-600 w-28">
+                      Mfg. Date
+                    </th>
+                    <th className="px-3 py-3 text-center font-semibold text-gray-600 w-28">
+                      Exp. Date
+                    </th>
+                    <th className="px-3 py-3 text-center font-semibold text-emerald-700 w-20">
                       Water (W)
                     </th>
-                    <th className="px-4 py-3 text-center font-semibold text-amber-700 w-28">
+                    <th className="px-3 py-3 text-center font-semibold text-amber-700 w-20">
                       Non-Water (N)
                     </th>
-                    <th className="px-6 py-3 text-right font-semibold text-gray-600 w-36">
+                    <th className="px-4 py-3 text-right font-semibold text-gray-600 w-32">
                       Action
                     </th>
                   </tr>
@@ -522,91 +531,120 @@ export const ExcelUploadPage: React.FC = () => {
 
                     const previewItems = samplesList.slice(0, 4);
                     const remainingCount = samplesList.length - 4;
+                    const displayItems = isExpanded ? samplesList : previewItems;
 
                     return (
                       <tr key={row.date} className="hover:bg-blue-50/30 transition align-top">
-                        <td className="px-6 py-4 font-bold text-gray-900 whitespace-nowrap">
+                        {/* Date */}
+                        <td className="px-4 py-3.5 font-bold text-gray-900 whitespace-nowrap">
                           {row.displayDate}
                         </td>
 
-                        <td className="px-4 py-4 text-center">
-                          <span className="inline-flex items-center justify-center px-2.5 py-1 text-xs font-bold bg-blue-100 text-blue-800 rounded-full">
+                        {/* Total Samples */}
+                        <td className="px-3 py-3.5 text-center">
+                          <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-bold bg-blue-100 text-blue-800 rounded-full">
                             {row.total}
                           </span>
                         </td>
 
-                        <td className="px-6 py-4">
-                          <div className="space-y-2">
-                            <div className="grid grid-cols-1 gap-1.5">
-                              {(isExpanded ? samplesList : previewItems).map((item, i) => {
-                                const isW = item.isWater || item.sampleName.toLowerCase().includes("water");
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`flex flex-wrap items-center justify-between text-xs p-1.5 rounded border ${
-                                      isW
-                                        ? "bg-cyan-50/70 text-cyan-900 border-cyan-200"
-                                        : "bg-slate-50 text-slate-800 border-slate-200"
-                                    }`}
-                                  >
-                                    <div className="font-semibold flex items-center gap-1.5">
-                                      <span>{item.sampleName}</span>
-                                      {isW && (
-                                        <span className="text-[10px] px-1 py-0.2 bg-cyan-200 text-cyan-800 rounded font-bold">
-                                          Water Sample
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center gap-3 text-[11px] text-gray-600 mt-1 sm:mt-0 font-mono">
-                                      <span>
-                                        <strong className="text-gray-500 font-sans">B.No:</strong>{" "}
-                                        <span className="font-semibold text-gray-800">{item.batchNo}</span>
-                                      </span>
-                                      {item.mfgDate && item.mfgDate !== "-" && (
-                                        <span>
-                                          <strong className="text-gray-500 font-sans">Mfg:</strong> {item.mfgDate}
-                                        </span>
-                                      )}
-                                      {item.expDate && item.expDate !== "-" && (
-                                        <span>
-                                          <strong className="text-gray-500 font-sans">Exp:</strong> {item.expDate}
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
+                        {/* Sample Names Column */}
+                        <td className="px-4 py-3.5">
+                          <div className="space-y-1.5">
+                            {displayItems.map((item, i) => {
+                              const isW = item.isWater || item.sampleName.toLowerCase().includes("water");
+                              return (
+                                <div
+                                  key={i}
+                                  className={`text-xs py-1 px-1.5 rounded flex items-center justify-between gap-1 border ${
+                                    isW ? "bg-cyan-50 text-cyan-900 border-cyan-200" : "bg-gray-50 text-gray-800 border-gray-200"
+                                  }`}
+                                >
+                                  <span className="font-medium truncate" title={item.sampleName}>
+                                    {item.sampleName}
+                                  </span>
+                                  {isW && (
+                                    <span className="shrink-0 text-[10px] px-1 bg-cyan-200 text-cyan-800 rounded font-bold">
+                                      Water
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
                             {remainingCount > 0 && (
                               <button
                                 type="button"
                                 onClick={() => setExpandedDate(isExpanded ? null : row.date)}
                                 className="text-[11px] text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
                               >
-                                {isExpanded ? "Show fewer samples ▲" : `+${remainingCount} more samples (with Batch, Mfg & Exp) ▼`}
+                                {isExpanded ? "Show fewer samples ▲" : `+${remainingCount} more samples ▼`}
                               </button>
                             )}
                           </div>
                         </td>
 
-                        <td className="px-4 py-4 text-center">
+                        {/* Dedicated Batch Number Column */}
+                        <td className="px-3 py-3.5 text-xs font-mono">
+                          <div className="space-y-1.5">
+                            {displayItems.map((item, i) => (
+                              <div
+                                key={i}
+                                className="py-1 px-1.5 rounded bg-gray-50 border border-gray-200 font-semibold text-gray-900 text-center truncate"
+                                title={item.batchNo}
+                              >
+                                {item.batchNo || "-"}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+
+                        {/* Dedicated Mfg. Date Column */}
+                        <td className="px-3 py-3.5 text-xs font-mono text-center">
+                          <div className="space-y-1.5">
+                            {displayItems.map((item, i) => (
+                              <div
+                                key={i}
+                                className="py-1 px-1 rounded bg-gray-50 border border-gray-200 text-gray-700 whitespace-nowrap"
+                              >
+                                {item.mfgDate && item.mfgDate !== "-" ? item.mfgDate : "-"}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+
+                        {/* Dedicated Exp. Date Column */}
+                        <td className="px-3 py-3.5 text-xs font-mono text-center">
+                          <div className="space-y-1.5">
+                            {displayItems.map((item, i) => (
+                              <div
+                                key={i}
+                                className="py-1 px-1 rounded bg-gray-50 border border-gray-200 text-gray-700 whitespace-nowrap"
+                              >
+                                {item.expDate && item.expDate !== "-" ? item.expDate : "-"}
+                              </div>
+                            ))}
+                          </div>
+                        </td>
+
+                        {/* Water Count (W) */}
+                        <td className="px-3 py-3.5 text-center">
                           <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 rounded">
                             {row.water}
                           </span>
                         </td>
 
-                        <td className="px-4 py-4 text-center">
+                        {/* Non-Water Count (N) */}
+                        <td className="px-3 py-3.5 text-center">
                           <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 rounded">
                             {row.nonWater}
                           </span>
                         </td>
 
-                        <td className="px-6 py-4 text-right whitespace-nowrap">
+                        {/* Action */}
+                        <td className="px-4 py-3.5 text-right whitespace-nowrap">
                           <button
                             type="button"
                             onClick={() => proceedToMediaPrep(row.date)}
-                            className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-3 py-1.5 rounded transition shadow-2xs"
+                            className="inline-flex items-center text-xs font-semibold text-blue-600 hover:text-blue-800 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded transition shadow-2xs"
                           >
                             Prepare Media &rarr;
                           </button>
