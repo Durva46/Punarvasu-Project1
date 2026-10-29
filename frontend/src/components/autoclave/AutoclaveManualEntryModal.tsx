@@ -26,7 +26,9 @@ export const AutoclaveManualEntryModal: React.FC<Props> = ({
   const [loadTypes, setLoadTypes] = useState<LoadTypeItem[]>([]);
   const [selectedLoadTypeId, setSelectedLoadTypeId] = useState<string>("");
   const [logDate, setLogDate] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
+  const [description, setDescription] = useState<string>(
+    "Media, Glassware - Plates, Plasticware- Tips, Spatulas and Apron"
+  );
 
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);

@@ -164,10 +164,9 @@ export const AutoclavePage: React.FC = () => {
       const cleaningDays = [1, 7, 14, 21, 28];
 
       const generatedEntries: AutoclaveEntry[] = localDays.map((day) => {
-        // Name of cycle load = sample names registered on that date + linked media preparation
-        const sampleDesc = day.sampleNames && day.sampleNames.length > 0
-          ? `${day.sampleNames.slice(0, 3).join(", ")}${day.sampleNames.length > 3 ? ` (+${day.sampleNames.length - 3} more)` : ""} & Media Prep`
-          : `Media – ${day.displayDate} (${day.total} samples)`;
+        // Requested standard cycle load items for every day:
+        // "Media, Glassware - Plates, Plasticware- Tips, Spatulas and Apron"
+        const standardCycleLoads = "Media, Glassware - Plates, Plasticware- Tips, Spatulas and Apron";
 
         // Check if this date's day of month matches the weekly cleaning schedule
         // Parse DD from DD-MM-YYYY
@@ -189,7 +188,7 @@ export const AutoclavePage: React.FC = () => {
           logDate: day.displayDate, // Exact date matching Media Preparation
           loadTypeId: "load-media",
           loadTypeName: "Media",
-          loadDescription: sampleDesc,
+          loadDescription: standardCycleLoads,
           autoclaveStartTime: "11:00",
           sterilizationStartTime: "12:00", // 1 hr after autoclave start time
           temperatureC: 121,
@@ -585,19 +584,67 @@ export const AutoclavePage: React.FC = () => {
                       {row.logDate}
                     </td>
 
-                    {/* Name of Cycle Load */}
+                    {/* Name of Cycle Load - Inline Editable with Preset Suggestions */}
                     <td className="px-3.5 py-3">
-                      <div className="font-semibold text-gray-900">{row.loadDescription}</div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <button
-                          onClick={() => setSourcesEntry(row)}
-                          className="text-[11px] text-blue-600 hover:text-blue-800 underline"
-                        >
-                          {row.sourceCount} linked sources
-                        </button>
-                        {row.isUserEdited && (
-                          <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 rounded">Edited</span>
-                        )}
+                      <div className="space-y-1">
+                        <textarea
+                          rows={2}
+                          value={row.loadDescription}
+                          onChange={(e) => {
+                            const newDesc = e.target.value;
+                            setEntries((prev) =>
+                              prev.map((item) =>
+                                item.id === row.id
+                                  ? { ...item, loadDescription: newDesc, isUserEdited: true }
+                                  : item
+                              )
+                            );
+                          }}
+                          className="w-full text-xs border border-gray-300 rounded px-2 py-1 font-medium bg-white focus:ring-1 focus:ring-blue-500"
+                          placeholder="Cycle items: Media, Glassware - Plates, Plasticware- Tips, Spatulas and Apron..."
+                        />
+                        <div className="flex flex-wrap items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const standard = "Media, Glassware - Plates, Plasticware- Tips, Spatulas and Apron";
+                              setEntries((prev) =>
+                                prev.map((item) =>
+                                  item.id === row.id
+                                    ? { ...item, loadDescription: standard, isUserEdited: true }
+                                    : item
+                                )
+                              );
+                            }}
+                            className="text-[10px] text-blue-700 bg-blue-50 hover:bg-blue-100 px-1.5 py-0.5 rounded border border-blue-200"
+                            title="Reset to default cycle load names"
+                          >
+                            + Reset Default
+                          </button>
+                          {["+ Beakers", "+ Pipettes", "+ Flasks", "+ Biohazard Waste"].map((extra) => (
+                            <button
+                              key={extra}
+                              type="button"
+                              onClick={() => {
+                                const addition = extra.replace("+ ", "");
+                                const current = row.loadDescription;
+                                const updated = current.includes(addition)
+                                  ? current
+                                  : `${current}, ${addition}`;
+                                setEntries((prev) =>
+                                  prev.map((item) =>
+                                    item.id === row.id
+                                      ? { ...item, loadDescription: updated, isUserEdited: true }
+                                      : item
+                                  )
+                                );
+                              }}
+                              className="text-[10px] text-gray-600 bg-gray-100 hover:bg-gray-200 px-1.5 py-0.5 rounded"
+                            >
+                              {extra}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </td>
 
