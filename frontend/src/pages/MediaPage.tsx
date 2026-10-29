@@ -330,6 +330,46 @@ export const MediaPage: React.FC = () => {
     setTimeout(() => setSavedSuccess(false), 3000);
   };
 
+  // Direct user editing handler for Media Preparation rows
+  const handleEditMediaRow = (
+    rowId: string,
+    field: "name" | "tubesPlates" | "factor" | "openingBalanceGm" | "preparedBy",
+    value: string
+  ) => {
+    setMediaRows((prev) => {
+      const updated = prev.map((r) => {
+        if (r.id !== rowId) return r;
+
+        let numVal = parseFloat(value) || 0;
+        let newTubes = field === "tubesPlates" ? Math.max(0, parseInt(value, 10) || 0) : r.tubesPlates;
+        let newFactor = field === "factor" ? Math.max(0, numVal) : r.factor;
+        let newOpening = field === "openingBalanceGm" ? numVal : r.openingBalanceGm;
+        let newName = field === "name" ? value : r.name;
+        let newStaff = field === "preparedBy" ? value : r.preparedBy;
+
+        const newQtyUsed = parseFloat((newTubes * newFactor).toFixed(2));
+        const newBalance = parseFloat((newOpening - newQtyUsed).toFixed(2));
+
+        return {
+          ...r,
+          name: newName,
+          tubesPlates: newTubes,
+          factor: newFactor,
+          openingBalanceGm: newOpening,
+          quantityUsedGm: newQtyUsed,
+          balanceGm: newBalance,
+          preparedBy: newStaff,
+          isNegativeShortfall: newBalance < 0,
+        };
+      });
+
+      if (currentDay) {
+        localStorage.setItem(`labflow_media_prep_${currentDay.date}`, JSON.stringify(updated));
+      }
+      return updated;
+    });
+  };
+
   // Proceed to Step 2: Autoclave
   const proceedToAutoclave = () => {
     if (blockingShortfall) {
@@ -570,35 +610,59 @@ export const MediaPage: React.FC = () => {
                     </td>
 
                     {/* Name of Media */}
-                    <td className="px-4 py-3 font-semibold text-gray-900">
-                      {row.name}
-                      {row.isConditional && (
-                        <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 font-bold border border-blue-200">
-                          Water Specific
-                        </span>
-                      )}
+                    <td className="px-3 py-2 font-semibold text-gray-900">
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={row.name}
+                          onChange={(e) => handleEditMediaRow(row.id, "name", e.target.value)}
+                          className="w-full text-xs font-semibold px-2 py-1 border border-gray-300 rounded bg-white focus:ring-1 focus:ring-blue-500"
+                        />
+                        {row.isConditional && (
+                          <span className="shrink-0 px-1.5 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 font-bold border border-blue-200">
+                            Water Specific
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Formula Description */}
-                    <td className="px-4 py-3 text-center font-mono text-[11px] text-gray-500 whitespace-nowrap">
+                    <td className="px-3 py-2 text-center font-mono text-[11px] text-gray-500 whitespace-nowrap">
                       {row.formulaDisplay}
                     </td>
 
                     {/* Tubes / Plates Result */}
-                    <td className="px-4 py-3 text-center">
-                      <span className="inline-flex items-center justify-center px-2.5 py-1 rounded bg-blue-100 text-blue-800 font-bold text-xs shadow-2xs">
-                        {row.tubesPlates}
-                      </span>
+                    <td className="px-3 py-2 text-center">
+                      <input
+                        type="number"
+                        min="0"
+                        value={row.tubesPlates}
+                        onChange={(e) => handleEditMediaRow(row.id, "tubesPlates", e.target.value)}
+                        className="w-16 text-center font-bold text-blue-800 bg-blue-50/70 border border-blue-300 rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-blue-500"
+                      />
                     </td>
 
                     {/* Factor (gm per tube) */}
-                    <td className="px-4 py-3 text-right font-mono text-gray-600">
-                      {row.factor.toFixed(2)}
+                    <td className="px-3 py-2 text-right">
+                      <input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={row.factor}
+                        onChange={(e) => handleEditMediaRow(row.id, "factor", e.target.value)}
+                        className="w-16 text-right font-mono text-gray-700 bg-white border border-gray-300 rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-blue-500"
+                      />
                     </td>
 
                     {/* Opening Balance (gm) */}
-                    <td className="px-4 py-3 text-right font-mono font-medium text-gray-800">
-                      {formatGrams(row.openingBalanceGm)} gm
+                    <td className="px-3 py-2 text-right">
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={row.openingBalanceGm}
+                        onChange={(e) => handleEditMediaRow(row.id, "openingBalanceGm", e.target.value)}
+                        className="w-20 text-right font-mono font-medium text-gray-800 bg-white border border-gray-300 rounded px-1.5 py-1 text-xs focus:ring-1 focus:ring-blue-500"
+                      />
                     </td>
 
                     {/* Quantity Used (gm) = tubes * factor */}
