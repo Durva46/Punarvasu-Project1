@@ -57,7 +57,7 @@ export interface BodPathogenRow {
 }
 
 const DAY_2_MEDIA_LIST = [
-  { name: "MacConkey's Broth", calcTubes: (S: number) => (S + 1 + 1 + 1) * 2 },
+  { name: "MacConkey's Broth", calcTubes: (S: number) => (S + 1 + 1) * 2 },
   { name: "Mannitol Salt Agar", calcTubes: (S: number) => S + 1 + 1 },
   { name: "Vogel Johnson Agar", calcTubes: (S: number) => S + 1 + 1 },
   { name: "Baird Parker Agar", calcTubes: (S: number) => S + 1 + 1 },

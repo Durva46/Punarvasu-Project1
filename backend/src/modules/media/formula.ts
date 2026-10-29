@@ -49,11 +49,11 @@ export function calculateTubePlates(
       };
 
     case "MACCONKEY_BROTH":
-      // Exactly as specified: (S + 1 + 1 + 1) * 2
+      // Formula: (S + 1 + 1) * 2
       return {
         formulaKey,
-        tubes: (S + 1 + 1 + 1) * 2,
-        formulaText: "(S + 1 + 1 + 1) * 2",
+        tubes: (S + 1 + 1) * 2,
+        formulaText: "(S + 1 + 1) * 2",
       };
 
     case "STANDARD_PLUS_TWO":

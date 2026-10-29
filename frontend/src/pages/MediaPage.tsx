@@ -14,7 +14,7 @@
  *
  * 2. Tube / Plate Formulas:
  *    a) Soybean Casein Digest Broth: Tubes = S * 2
- *    b) Mac Conkey's Broth: Tubes = (S + 1 + 1 + 1) * 2  (1 sample + 1 positive control + 1 negative control)
+ *    b) Mac Conkey's Broth: Tubes = (S + 1 + 1) * 2
  *    c) Peptone Water to Urea Broth: Tubes = S + 1 + 1
  *    d) R2A Agar (Conditional, ONLY when W > 0): Tubes = W * 2
  *    e) Soybean Casein Digest Agar & Sabouraud Dextrose Agar: Tubes = (N * 2) + 1 + 1
@@ -68,7 +68,7 @@ export interface MediaDef {
 
 export const MEDIA_REGISTRY: MediaDef[] = [
   { id: "m-scdb", name: "Soybean Casein Digest Broth (SCDM)", category: "scdb", factor: 2.70, formulaDisplay: "S × 2" },
-  { id: "m-mcb", name: "Mac Conkey's Broth", category: "mac_conkey", factor: 0.40, formulaDisplay: "(S + 1 + 1 + 1) × 2" },
+  { id: "m-mcb", name: "Mac Conkey's Broth", category: "mac_conkey", factor: 0.40, formulaDisplay: "(S + 1 + 1) × 2" },
   { id: "m-pw", name: "Peptone Water", category: "standard", factor: 0.07, formulaDisplay: "S + 1 + 1" },
   { id: "m-mca", name: "Mac Conkey's Agar", category: "standard", factor: 1.03, formulaDisplay: "S + 1 + 1" },
   { id: "m-emba", name: "Eosine Methelene Blue Agar (EMB)", category: "standard", factor: 0.75, formulaDisplay: "S + 1 + 1" },
@@ -238,7 +238,7 @@ export const MediaPage: React.FC = () => {
             tubes = dayS * 2;
             break;
           case "mac_conkey":
-            tubes = (dayS + 1 + positiveControl + negativeControl) * 2;
+            tubes = (dayS + positiveControl + negativeControl) * 2;
             break;
           case "standard":
             tubes = dayS + positiveControl + negativeControl;
