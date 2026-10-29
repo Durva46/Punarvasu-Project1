@@ -48,6 +48,52 @@ export const ExcelUploadPage: React.FC = () => {
   const [totalParsedSamples, setTotalParsedSamples] = useState<number>(0);
   const [filterDate, setFilterDate] = useState<string>("");
   const [expandedDate, setExpandedDate] = useState<string | null>(null);
+  const [savedChangesToast, setSavedChangesToast] = useState<string | null>(null);
+
+  // In-line editing helper to update sample details
+  const handleUpdateSample = (
+    dateKey: string,
+    sampleIdx: number,
+    field: keyof ParsedSampleItem,
+    value: string
+  ) => {
+    setAnalyzedDaily((prev) => {
+      const updated = prev.map((day) => {
+        if (day.date !== dateKey) return day;
+
+        const currentSamples = day.samples ? [...day.samples] : [];
+        if (currentSamples[sampleIdx]) {
+          currentSamples[sampleIdx] = {
+            ...currentSamples[sampleIdx],
+            [field]: value,
+          };
+          if (field === "sampleName") {
+            const isWater = value.toLowerCase().includes("water");
+            currentSamples[sampleIdx].isWater = isWater;
+          }
+        }
+
+        const sampleNames = currentSamples.map((s) => s.sampleName);
+        const water = currentSamples.filter((s) => s.isWater).length;
+        const nonWater = currentSamples.length - water;
+
+        return {
+          ...day,
+          sampleNames,
+          samples: currentSamples,
+          water,
+          nonWater,
+          total: currentSamples.length,
+        };
+      });
+
+      localStorage.setItem("labflow_analyzed_daily", JSON.stringify(updated));
+      return updated;
+    });
+
+    setSavedChangesToast("Changes updated");
+    setTimeout(() => setSavedChangesToast(null), 2000);
+  };
 
   // Helper to format Date to DD-MM-YYYY
   const formatDMY = (d: Date): string => {
@@ -499,7 +545,13 @@ export const ExcelUploadPage: React.FC = () => {
                 <h3 className="text-sm font-bold text-gray-800">Date-Wise Sample Analysis & Name Breakdown</h3>
                 <p className="text-xs text-gray-500">
                   Total sample count ($S$), sample names per day, water samples ($W$), and non-water samples ($N$).
+                  <span className="ml-1 text-emerald-700 font-medium">Click on any cell to edit Sample Name, Batch No, Mfg Date, or Exp Date.</span>
                 </p>
+                {savedChangesToast && (
+                  <span className="inline-block mt-1 text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded animate-fade-in">
+                    ✓ {savedChangesToast}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <input
@@ -580,23 +632,28 @@ export const ExcelUploadPage: React.FC = () => {
                         </td>
 
                         {/* Sample Names Column */}
-                        <td className="px-4 py-3.5">
+                        <td className="px-3 py-3.5">
                           <div className="space-y-1.5">
                             {displayItems.map((item, i) => {
                               const isW = item.isWater || item.sampleName.toLowerCase().includes("water");
                               return (
-                                <div
-                                  key={i}
-                                  className={`text-xs py-1 px-1.5 rounded flex items-center justify-between gap-1 border ${
-                                    isW ? "bg-cyan-50 text-cyan-900 border-cyan-200" : "bg-gray-50 text-gray-800 border-gray-200"
-                                  }`}
-                                >
-                                  <span className="font-medium truncate" title={item.sampleName}>
-                                    {item.sampleName}
-                                  </span>
+                                <div key={i} className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={item.sampleName}
+                                    onChange={(e) =>
+                                      handleUpdateSample(row.date, i, "sampleName", e.target.value)
+                                    }
+                                    className={`w-full text-xs py-1 px-2 rounded border font-medium focus:ring-1 focus:ring-blue-500 focus:outline-none ${
+                                      isW
+                                        ? "bg-cyan-50/70 text-cyan-950 border-cyan-300"
+                                        : "bg-white text-gray-900 border-gray-300"
+                                    }`}
+                                    placeholder="Sample Name"
+                                  />
                                   {isW && (
-                                    <span className="shrink-0 text-[10px] px-1 bg-cyan-200 text-cyan-800 rounded font-bold">
-                                      Water
+                                    <span className="shrink-0 text-[10px] px-1.5 py-0.5 bg-cyan-200 text-cyan-800 rounded font-bold">
+                                      W
                                     </span>
                                   )}
                                 </div>
@@ -618,13 +675,16 @@ export const ExcelUploadPage: React.FC = () => {
                         <td className="px-3 py-3.5 text-xs font-mono">
                           <div className="space-y-1.5">
                             {displayItems.map((item, i) => (
-                              <div
+                              <input
                                 key={i}
-                                className="py-1 px-1.5 rounded bg-gray-50 border border-gray-200 font-semibold text-gray-900 text-center truncate"
-                                title={item.batchNo}
-                              >
-                                {item.batchNo || "-"}
-                              </div>
+                                type="text"
+                                value={item.batchNo === "-" ? "" : item.batchNo}
+                                onChange={(e) =>
+                                  handleUpdateSample(row.date, i, "batchNo", e.target.value)
+                                }
+                                placeholder="Batch No"
+                                className="w-full text-xs py-1 px-1.5 rounded bg-white border border-gray-300 font-semibold text-gray-900 text-center focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              />
                             ))}
                           </div>
                         </td>
@@ -633,12 +693,16 @@ export const ExcelUploadPage: React.FC = () => {
                         <td className="px-3 py-3.5 text-xs font-mono text-center">
                           <div className="space-y-1.5">
                             {displayItems.map((item, i) => (
-                              <div
+                              <input
                                 key={i}
-                                className="py-1 px-1 rounded bg-gray-50 border border-gray-200 text-gray-700 whitespace-nowrap"
-                              >
-                                {item.mfgDate && item.mfgDate !== "-" ? item.mfgDate : "-"}
-                              </div>
+                                type="text"
+                                value={item.mfgDate === "-" ? "" : item.mfgDate}
+                                onChange={(e) =>
+                                  handleUpdateSample(row.date, i, "mfgDate", e.target.value)
+                                }
+                                placeholder="DD-MM-YYYY"
+                                className="w-full text-xs py-1 px-1 rounded bg-white border border-gray-300 text-gray-700 text-center focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              />
                             ))}
                           </div>
                         </td>
@@ -647,12 +711,16 @@ export const ExcelUploadPage: React.FC = () => {
                         <td className="px-3 py-3.5 text-xs font-mono text-center">
                           <div className="space-y-1.5">
                             {displayItems.map((item, i) => (
-                              <div
+                              <input
                                 key={i}
-                                className="py-1 px-1 rounded bg-gray-50 border border-gray-200 text-gray-700 whitespace-nowrap"
-                              >
-                                {item.expDate && item.expDate !== "-" ? item.expDate : "-"}
-                              </div>
+                                type="text"
+                                value={item.expDate === "-" ? "" : item.expDate}
+                                onChange={(e) =>
+                                  handleUpdateSample(row.date, i, "expDate", e.target.value)
+                                }
+                                placeholder="DD-MM-YYYY"
+                                className="w-full text-xs py-1 px-1 rounded bg-white border border-gray-300 text-gray-700 text-center focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                              />
                             ))}
                           </div>
                         </td>
