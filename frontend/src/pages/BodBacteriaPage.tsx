@@ -32,6 +32,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { addDaysSkippingFriday, getNextOperatingDay } from "../lib/format";
 
 export interface BodBacteriaEntry {
   id: string;
@@ -59,32 +60,13 @@ export const BodBacteriaPage: React.FC = () => {
     (v, i, a) => a.indexOf(v) === i
   );
 
-  // Helper to add N days to a DD-MM-YYYY date string
+  // Helper to add N days to a DD-MM-YYYY date string, automatically skipping Friday holidays to Saturday
   const addDays = (dateStr: string, daysToAdd: number): string => {
-    try {
-      const parts = dateStr.split(/[-/]/);
-      if (parts.length === 3) {
-        let d = parseInt(parts[0], 10);
-        let m = parseInt(parts[1], 10) - 1;
-        let y = parseInt(parts[2], 10);
-        if (parts[0].length === 4) {
-          y = parseInt(parts[0], 10);
-          m = parseInt(parts[1], 10) - 1;
-          d = parseInt(parts[2], 10);
-        }
-        const dt = new Date(y, m, d);
-        dt.setDate(dt.getDate() + daysToAdd);
-        const nextD = String(dt.getDate()).padStart(2, "0");
-        const nextM = String(dt.getMonth() + 1).padStart(2, "0");
-        const nextY = dt.getFullYear();
-        return `${nextD}-${nextM}-${nextY}`;
-      }
-    } catch {}
-    return dateStr;
+    return addDaysSkippingFriday(dateStr, daysToAdd);
   };
 
-  // Helper to compute next day from DD-MM-YYYY
-  const getNextDay = (dateStr: string): string => addDays(dateStr, 1);
+  // Helper to compute next day from DD-MM-YYYY, skipping Friday
+  const getNextDay = (dateStr: string): string => getNextOperatingDay(dateStr);
 
   // Load and align with LAF dates & samples
   useEffect(() => {

@@ -136,3 +136,33 @@ export function formatTime12h(time: string): string {
   if (!time) return "";
   return to12Hour(time.slice(0, 5));
 }
+
+/**
+ * Checks if a Date object is a Friday (laboratory non-working holiday).
+ */
+export function isFriday(date: Date): boolean {
+  return date.getUTCDay() === 5 || date.getDay() === 5;
+}
+
+/**
+ * Adjusts a date forward to Saturday (+1 day) if it lands on Friday.
+ */
+export function skipFriday(date: Date): Date {
+  const adjusted = new Date(date.getTime());
+  if (adjusted.getUTCDay() === 5) {
+    adjusted.setUTCDate(adjusted.getUTCDate() + 1);
+  }
+  return adjusted;
+}
+
+/**
+ * Adds days skipping Friday holidays.
+ */
+export function addDaysSkippingFriday(date: Date, daysToAdd: number): Date {
+  let current = skipFriday(date);
+  for (let i = 0; i < daysToAdd; i++) {
+    current.setUTCDate(current.getUTCDate() + 1);
+    current = skipFriday(current);
+  }
+  return current;
+}

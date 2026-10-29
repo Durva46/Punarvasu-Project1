@@ -31,6 +31,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getNextOperatingDay, skipFriday, parseDMY, formatToDMY } from "../lib/format";
 
 export interface LafEntry {
   id: string;
@@ -61,29 +62,9 @@ export const LafPage: React.FC = () => {
     (v, i, a) => a.indexOf(v) === i
   );
 
-  // Helper to compute next day (DD-MM-YYYY)
+  // Helper to compute next day (DD-MM-YYYY), skipping Friday holiday to Saturday
   const getNextDay = (dateStr: string): string => {
-    try {
-      const parts = dateStr.split(/[-/]/);
-      if (parts.length === 3) {
-        let d = parseInt(parts[0], 10);
-        let m = parseInt(parts[1], 10) - 1;
-        let y = parseInt(parts[2], 10);
-        if (parts[0].length === 4) {
-          // YYYY-MM-DD
-          y = parseInt(parts[0], 10);
-          m = parseInt(parts[1], 10) - 1;
-          d = parseInt(parts[2], 10);
-        }
-        const dt = new Date(y, m, d);
-        dt.setDate(dt.getDate() + 1);
-        const nextD = String(dt.getDate()).padStart(2, "0");
-        const nextM = String(dt.getMonth() + 1).padStart(2, "0");
-        const nextY = dt.getFullYear();
-        return `${nextD}-${nextM}-${nextY}`;
-      }
-    } catch {}
-    return dateStr;
+    return getNextOperatingDay(dateStr);
   };
 
   // Helper to compute default End Time according to sample count:
@@ -143,9 +124,12 @@ export const LafPage: React.FC = () => {
           // Generate one LAF entry per sample date using the next date from the uploaded Excel sheet
           const gen: LafEntry[] = days.map((d, index) => {
             // If there is a next registered date in the uploaded Excel list, use that; otherwise calculate next day
-            const nextDayDate = index + 1 < days.length
+            const rawNextDate = index + 1 < days.length
               ? days[index + 1].displayDate
               : getNextDay(d.displayDate);
+            // Ensure any Friday is skipped to Saturday
+            const parsedObj = parseDMY(rawNextDate);
+            const nextDayDate = parsedObj ? formatToDMY(skipFriday(parsedObj)) : rawNextDate;
 
             const count = d.total || 1;
             const productNamesJoined = d.sampleNames && d.sampleNames.length > 0

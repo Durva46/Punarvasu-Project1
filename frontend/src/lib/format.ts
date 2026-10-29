@@ -75,3 +75,78 @@ export function previewEndTime(
 
   return { time: time24, dayOffset, formatted };
 }
+
+/**
+ * Checks if a given date string (DD-MM-YYYY or ISO) falls on a Friday (lab holiday).
+ */
+export function isFriday(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const d = parseDMY(dateStr);
+  return d ? d.getDay() === 5 : false;
+}
+
+/**
+ * Parses DD-MM-YYYY string into a Date object at local midnight.
+ */
+export function parseDMY(dateStr: string): Date | null {
+  if (!dateStr) return null;
+  const parts = dateStr.trim().split(/[-/.]/);
+  if (parts.length === 3) {
+    if (parts[0].length <= 2 && parts[1].length <= 2 && parts[2].length === 4) {
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const y = parseInt(parts[2], 10);
+      const obj = new Date(y, m, d);
+      if (!isNaN(obj.getTime())) return obj;
+    }
+  }
+  const fallback = new Date(dateStr);
+  return isNaN(fallback.getTime()) ? null : fallback;
+}
+
+/**
+ * Formats a Date object to "DD-MM-YYYY" string.
+ */
+export function formatToDMY(d: Date): string {
+  const day = String(d.getDate()).padStart(2, "0");
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}-${month}-${year}`;
+}
+
+/**
+ * Adjusts a date forward to Saturday (+1 day) if it falls on Friday (lab holiday).
+ */
+export function skipFriday(d: Date): Date {
+  const adjusted = new Date(d.getTime());
+  if (adjusted.getDay() === 5) {
+    // Friday -> Saturday (+1 day)
+    adjusted.setDate(adjusted.getDate() + 1);
+  }
+  return adjusted;
+}
+
+/**
+ * Adds working laboratory days, skipping Friday holidays whether in-between or final date.
+ * If any intermediate step or the final calculated date lands on a Friday, it shifts to Saturday.
+ */
+export function addDaysSkippingFriday(dateStr: string, daysToAdd: number): string {
+  const d = parseDMY(dateStr);
+  if (!d) return dateStr;
+
+  let current = skipFriday(d);
+
+  for (let i = 0; i < daysToAdd; i++) {
+    current.setDate(current.getDate() + 1);
+    current = skipFriday(current);
+  }
+
+  return formatToDMY(current);
+}
+
+/**
+ * Gets the next operating day (skips Friday to Saturday if next day is Friday).
+ */
+export function getNextOperatingDay(dateStr: string): string {
+  return addDaysSkippingFriday(dateStr, 1);
+}
