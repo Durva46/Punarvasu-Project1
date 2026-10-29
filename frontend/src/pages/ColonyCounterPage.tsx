@@ -126,6 +126,13 @@ export const ColonyCounterPage: React.FC = () => {
           water: number;
           nonWater: number;
           sampleNames: string[];
+          samples?: Array<{
+            sampleName: string;
+            batchNo: string;
+            mfgDate: string;
+            expDate: string;
+            isWater: boolean;
+          }>;
         }> = JSON.parse(cachedDaily);
 
         let lafMap = new Map<string, string>();
@@ -147,12 +154,16 @@ export const ColonyCounterPage: React.FC = () => {
               ? d.sampleNames.join(", ")
               : "Standard Samples";
 
+            const uploadedBatch = d.samples && d.samples.length > 0
+              ? d.samples.map((s) => s.batchNo).filter(Boolean).join(", ")
+              : `B-${bodEndDate.slice(0, 2)}${bodEndDate.slice(3, 5)}`;
+
             return {
               id: `colony-${d.date}-${idx}`,
               sourceDate: lafDate,
               date: bodEndDate, // End date of B.O.D. as the colony counter date
               productName: allSampleNames,
-              batchNo: `B-${bodEndDate.slice(0, 2)}${bodEndDate.slice(3, 5)}`,
+              batchNo: uploadedBatch,
               cleaning: "Everyday cleaning done",
               doneBy: defaultStaff,
             };

@@ -112,6 +112,13 @@ export const BodBacteriaPage: React.FC = () => {
           water: number;
           nonWater: number;
           sampleNames: string[];
+          samples?: Array<{
+            sampleName: string;
+            batchNo: string;
+            mfgDate: string;
+            expDate: string;
+            isWater: boolean;
+          }>;
         }> = JSON.parse(cachedDaily);
 
         let lafMap = new Map<string, string>(); // sourceDate -> lafDate
@@ -140,6 +147,14 @@ export const BodBacteriaPage: React.FC = () => {
             const nonWaterCount = d.nonWater || nonWaterSamples.length;
             const waterCount = d.water || waterSamples.length;
 
+            // Extract real batch numbers from uploaded sheet items
+            const nonWaterBatch = d.samples && d.samples.length > 0
+              ? d.samples.filter((s) => !s.isWater && !s.sampleName.toLowerCase().includes("water")).map((s) => s.batchNo).filter(Boolean).join(", ")
+              : "";
+            const waterBatch = d.samples && d.samples.length > 0
+              ? d.samples.filter((s) => s.isWater || s.sampleName.toLowerCase().includes("water")).map((s) => s.batchNo).filter(Boolean).join(", ")
+              : "";
+
             // 1. Non-water sample entry (Media = "SCDA", Tubes = (non_water * 2) + 2)
             if (nonWaterCount > 0 || (nonWaterCount === 0 && waterCount === 0)) {
               const nonWaterName = nonWaterSamples.length > 0
@@ -151,7 +166,7 @@ export const BodBacteriaPage: React.FC = () => {
                 date: lafDate, // Same date as LAF
                 productName: nonWaterName,
                 media: "SCDA",
-                batchNo: `B-${lafDate.slice(0, 2)}${lafDate.slice(3, 5)}-1`,
+                batchNo: nonWaterBatch || `B-${lafDate.slice(0, 2)}${lafDate.slice(3, 5)}-1`,
                 sampleCount: count,
                 platesTubes: (count * 2) + 2, // Formula: (non-water * 2) + 2
                 incubationStartDate: lafDate, // Same date as LAF
@@ -172,7 +187,7 @@ export const BodBacteriaPage: React.FC = () => {
                 date: lafDate, // Same date as LAF
                 productName: waterName,
                 media: "R2A",
-                batchNo: `B-${lafDate.slice(0, 2)}${lafDate.slice(3, 5)}-W`,
+                batchNo: waterBatch || `B-${lafDate.slice(0, 2)}${lafDate.slice(3, 5)}-W`,
                 sampleCount: waterCount,
                 platesTubes: (waterCount * 2) + 2, // Formula: (water * 2) + 2
                 incubationStartDate: lafDate, // Same date as LAF

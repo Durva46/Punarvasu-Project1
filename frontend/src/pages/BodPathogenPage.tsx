@@ -126,6 +126,13 @@ export const BodPathogenPage: React.FC = () => {
           water: number;
           nonWater: number;
           sampleNames: string[];
+          samples?: Array<{
+            sampleName: string;
+            batchNo: string;
+            mfgDate: string;
+            expDate: string;
+            isWater: boolean;
+          }>;
         }> = JSON.parse(cachedDaily);
 
         let lafMap = new Map<string, string>();
@@ -147,6 +154,11 @@ export const BodPathogenPage: React.FC = () => {
               ? d.sampleNames.join(", ")
               : "Standard Samples";
 
+            // Extract real batch number from uploaded sheet
+            const uploadedBatch = d.samples && d.samples.length > 0
+              ? d.samples.map((s) => s.batchNo).filter(Boolean).join(", ")
+              : "";
+
             // Day 1 Date = Same date as LAF Date
             const day1Date = lafMap.get(d.displayDate) ||
               (idx + 1 < days.length ? days[idx + 1].displayDate : getNextDay(d.displayDate));
@@ -164,7 +176,7 @@ export const BodPathogenPage: React.FC = () => {
               date: day1Date,
               productName: allSampleNames,
               media: "SCDB",
-              batchNo: `B-${day1Date.slice(0, 2)}${day1Date.slice(3, 5)}-D1`,
+              batchNo: uploadedBatch || `B-${day1Date.slice(0, 2)}${day1Date.slice(3, 5)}-D1`,
               platesTubes: S, // Total number of samples as tubes
               incubationStartDate: day1Date,
               incubationEndDate: day1EndDate,
@@ -182,7 +194,7 @@ export const BodPathogenPage: React.FC = () => {
                 date: day2Date,
                 productName: allSampleNames,
                 media: mDef.name,
-                batchNo: `B-${day2Date.slice(0, 2)}${day2Date.slice(3, 5)}-D2`,
+                batchNo: uploadedBatch || `B-${day2Date.slice(0, 2)}${day2Date.slice(3, 5)}-D2`,
                 platesTubes: tubes, // Same as media preparation
                 incubationStartDate: day2Date,
                 incubationEndDate: day2EndDate,
@@ -198,7 +210,7 @@ export const BodPathogenPage: React.FC = () => {
               date: addDays(day2Date, 1),
               productName: allSampleNames,
               media: "Selective Sub-culture / Identification (Reserved)",
-              batchNo: `B-${day2Date.slice(0, 2)}${day2Date.slice(3, 5)}-D3`,
+              batchNo: uploadedBatch || `B-${day2Date.slice(0, 2)}${day2Date.slice(3, 5)}-D3`,
               platesTubes: S,
               incubationStartDate: addDays(day2Date, 1),
               incubationEndDate: addDays(day2Date, 6),

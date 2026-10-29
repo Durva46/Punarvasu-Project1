@@ -128,6 +128,13 @@ export const LafPage: React.FC = () => {
           water: number;
           nonWater: number;
           sampleNames: string[];
+          samples?: Array<{
+            sampleName: string;
+            batchNo: string;
+            mfgDate: string;
+            expDate: string;
+            isWater: boolean;
+          }>;
         }> = JSON.parse(cachedDaily);
 
         if (days.length > 0) {
@@ -145,13 +152,18 @@ export const LafPage: React.FC = () => {
               ? d.sampleNames.join(", ")
               : "Finished Product / Material";
 
+            // Use the real batch number from uploaded sheet if present
+            const uploadedBatch = d.samples && d.samples.length > 0 && d.samples[0].batchNo
+              ? d.samples.map((s) => s.batchNo).filter(Boolean).join(", ")
+              : `B-${nextDayDate.slice(0, 2)}${nextDayDate.slice(3, 5)}`;
+
             return {
               id: `laf-${d.date}-${index}`,
               sourceDate: d.displayDate,
               date: nextDayDate, // Set to the next date from the uploaded Excel sheet
               startTime: "02:00 PM", // 2:00 PM starting time
               productName: productNamesJoined,
-              batchNo: `B-${nextDayDate.slice(0, 2)}${nextDayDate.slice(3, 5)}`,
+              batchNo: uploadedBatch,
               manometerReadingMm: 11, // 11 mm manometer reading
               uvBurningHours: "20 mins", // 20 mins UV burning
               sampleCount: count,

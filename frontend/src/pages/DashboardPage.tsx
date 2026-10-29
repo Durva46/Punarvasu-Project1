@@ -31,6 +31,7 @@ export const DashboardPage: React.FC = () => {
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [deleteStatus, setDeleteStatus] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [expandedSheetId, setExpandedSheetId] = useState<string | null>(null);
 
   // Helper to load sheets from backend and localStorage
   const loadSheets = async () => {
@@ -324,140 +325,248 @@ export const DashboardPage: React.FC = () => {
                   const isConfirmingDelete = deleteConfirmId === sheet.id;
 
                   return (
-                    <tr key={sheet.id} className="hover:bg-blue-50/40 transition">
-                      {/* Reporting Month */}
-                      <td className="px-4 py-3 font-bold text-gray-900 whitespace-nowrap">
-                        <span className="px-2 py-1 rounded bg-slate-100 text-slate-800 font-mono text-xs">
-                          {sheet.reportingMonth}
-                        </span>
-                        <div className="text-[11px] text-gray-400 font-normal mt-0.5">
-                          Uploaded: {new Date(sheet.uploadedAt).toLocaleDateString()}
-                        </div>
-                      </td>
-
-                      {/* File Name */}
-                      <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={sheet.fileName}>
-                        <div className="font-medium text-gray-900">{sheet.fileName}</div>
-                        <span className="text-[10px] text-emerald-600 font-semibold uppercase">Parsed & Verified</span>
-                      </td>
-
-                      {/* Total Samples */}
-                      <td className="px-4 py-3 text-center whitespace-nowrap font-bold text-blue-600">
-                        {sheet.totalSamples}
-                      </td>
-
-                      {/* Water / Non-water */}
-                      <td className="px-4 py-3 text-center whitespace-nowrap text-gray-600">
-                        <span className="text-cyan-700 font-semibold">{sheet.waterSamples} Water</span>
-                        <span className="mx-1 text-gray-400">/</span>
-                        <span className="text-gray-800 font-semibold">{sheet.nonWaterSamples} Non-Water</span>
-                      </td>
-
-                      {/* Dates Count */}
-                      <td className="px-4 py-3 text-center whitespace-nowrap text-gray-700">
-                        {sheet.totalDates > 0 ? `${sheet.totalDates} Days` : "Active"}
-                      </td>
-
-                      {/* 7-Stage Process Workflow Badges */}
-                      <td className="px-4 py-3">
-                        <div className="flex flex-wrap items-center gap-1">
-                          <Link
-                            to="/media"
-                            onClick={() => handleSelectSheet(sheet)}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 hover:bg-blue-200"
-                            title="Step 1: Media Preparation"
-                          >
-                            1. Media
-                          </Link>
-                          <Link
-                            to="/autoclave"
-                            onClick={() => handleSelectSheet(sheet)}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                            title="Step 2: Autoclave Log"
-                          >
-                            2. Autoclave
-                          </Link>
-                          <Link
-                            to="/laf"
-                            onClick={() => handleSelectSheet(sheet)}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-100 text-indigo-800 hover:bg-indigo-200"
-                            title="Stage 3: LAF Log Book"
-                          >
-                            3. LAF
-                          </Link>
-                          <Link
-                            to="/bod-bacteria"
-                            onClick={() => handleSelectSheet(sheet)}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 hover:bg-amber-200"
-                            title="Stage 4: BOD Bacteria 30-35°C"
-                          >
-                            4. BOD-Bact
-                          </Link>
-                          <Link
-                            to="/bod-fungus"
-                            onClick={() => handleSelectSheet(sheet)}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-800 hover:bg-orange-200"
-                            title="Stage 5: BOD Fungus 20-25°C"
-                          >
-                            5. BOD-Fung
-                          </Link>
-                          <Link
-                            to="/bod-pathogen"
-                            onClick={() => handleSelectSheet(sheet)}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 hover:bg-rose-200"
-                            title="Stage 6: BOD Pathogen 37°C"
-                          >
-                            6. BOD-Path
-                          </Link>
-                          <Link
-                            to="/colony-counter"
-                            onClick={() => handleSelectSheet(sheet)}
-                            className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 hover:bg-purple-200"
-                            title="Stage 7: Colony Counter"
-                          >
-                            7. Colony
-                          </Link>
-                        </div>
-                      </td>
-
-                      {/* Actions: View / Delete */}
-                      <td className="px-4 py-3 text-right whitespace-nowrap">
-                        {isConfirmingDelete ? (
-                          <div className="inline-flex items-center gap-1.5">
-                            <button
-                              onClick={() => handleDeleteSheet(sheet.id)}
-                              className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold shadow-xs transition"
-                            >
-                              Confirm Delete
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(null)}
-                              className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-[11px] font-semibold transition"
-                            >
-                              Cancel
-                            </button>
+                    <React.Fragment key={sheet.id}>
+                      <tr className="hover:bg-blue-50/40 transition">
+                        {/* Reporting Month */}
+                        <td className="px-4 py-3 font-bold text-gray-900 whitespace-nowrap">
+                          <span className="px-2 py-1 rounded bg-slate-100 text-slate-800 font-mono text-xs">
+                            {sheet.reportingMonth}
+                          </span>
+                          <div className="text-[11px] text-gray-400 font-normal mt-0.5">
+                            Uploaded: {new Date(sheet.uploadedAt).toLocaleDateString()}
                           </div>
-                        ) : (
-                          <div className="inline-flex items-center gap-2">
-                            <button
+                        </td>
+
+                        {/* File Name */}
+                        <td className="px-4 py-3 text-gray-700 max-w-xs truncate" title={sheet.fileName}>
+                          <div className="font-medium text-gray-900">{sheet.fileName}</div>
+                          <span className="text-[10px] text-emerald-600 font-semibold uppercase">Parsed & Verified</span>
+                        </td>
+
+                        {/* Total Samples */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap font-bold text-blue-600">
+                          {sheet.totalSamples}
+                        </td>
+
+                        {/* Water / Non-water */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap text-gray-600">
+                          <span className="text-cyan-700 font-semibold">{sheet.waterSamples} Water</span>
+                          <span className="mx-1 text-gray-400">/</span>
+                          <span className="text-gray-800 font-semibold">{sheet.nonWaterSamples} Non-Water</span>
+                        </td>
+
+                        {/* Dates Count */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap text-gray-700">
+                          {sheet.totalDates > 0 ? `${sheet.totalDates} Days` : "Active"}
+                        </td>
+
+                        {/* 7-Stage Process Workflow Badges */}
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <Link
+                              to="/media"
                               onClick={() => handleSelectSheet(sheet)}
-                              className="px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition"
+                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 hover:bg-blue-200"
+                              title="Step 1: Media Preparation"
                             >
-                              View / Open Sheet &rarr;
-                            </button>
-                            <button
-                              onClick={() => setDeleteConfirmId(sheet.id)}
-                              className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition"
-                              title="Delete sheet record"
+                              1. Media
+                            </Link>
+                            <Link
+                              to="/autoclave"
+                              onClick={() => handleSelectSheet(sheet)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
+                              title="Step 2: Autoclave Log"
                             >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                              </svg>
-                            </button>
+                              2. Autoclave
+                            </Link>
+                            <Link
+                              to="/laf"
+                              onClick={() => handleSelectSheet(sheet)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-100 text-indigo-800 hover:bg-indigo-200"
+                              title="Stage 3: LAF Log Book"
+                            >
+                              3. LAF
+                            </Link>
+                            <Link
+                              to="/bod-bacteria"
+                              onClick={() => handleSelectSheet(sheet)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-800 hover:bg-amber-200"
+                              title="Stage 4: BOD Bacteria 30-35°C"
+                            >
+                              4. BOD-Bact
+                            </Link>
+                            <Link
+                              to="/bod-fungus"
+                              onClick={() => handleSelectSheet(sheet)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-800 hover:bg-orange-200"
+                              title="Stage 5: BOD Fungus 20-25°C"
+                            >
+                              5. BOD-Fung
+                            </Link>
+                            <Link
+                              to="/bod-pathogen"
+                              onClick={() => handleSelectSheet(sheet)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-rose-100 text-rose-800 hover:bg-rose-200"
+                              title="Stage 6: BOD Pathogen 37°C"
+                            >
+                              6. BOD-Path
+                            </Link>
+                            <Link
+                              to="/colony-counter"
+                              onClick={() => handleSelectSheet(sheet)}
+                              className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-800 hover:bg-purple-200"
+                              title="Stage 7: Colony Counter"
+                            >
+                              7. Colony
+                            </Link>
                           </div>
-                        )}
-                      </td>
-                    </tr>
+                        </td>
+
+                        {/* Actions: View / Delete */}
+                        <td className="px-4 py-3 text-right whitespace-nowrap">
+                          {isConfirmingDelete ? (
+                            <div className="inline-flex items-center gap-1.5">
+                              <button
+                                onClick={() => handleDeleteSheet(sheet.id)}
+                                className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[11px] font-bold shadow-xs transition"
+                              >
+                                Confirm Delete
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(null)}
+                                className="px-2 py-1 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded text-[11px] font-semibold transition"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-2">
+                              <button
+                                onClick={() => setExpandedSheetId(expandedSheetId === sheet.id ? null : sheet.id)}
+                                className="px-2 py-1 text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded border border-gray-300 transition"
+                              >
+                                {expandedSheetId === sheet.id ? "Hide Samples ▲" : "View Samples ▼"}
+                              </button>
+                              <button
+                                onClick={() => handleSelectSheet(sheet)}
+                                className="px-2.5 py-1 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 rounded border border-blue-200 transition"
+                              >
+                                Open in Workflow &rarr;
+                              </button>
+                              <button
+                                onClick={() => setDeleteConfirmId(sheet.id)}
+                                className="p-1 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition"
+                                title="Delete sheet record"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                      {expandedSheetId === sheet.id && (
+                        <tr className="bg-slate-50/70 border-b border-gray-200">
+                          <td colSpan={7} className="px-6 py-4">
+                            <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-2xs">
+                              <div className="flex flex-wrap items-center justify-between pb-3 mb-3 border-b border-gray-200 gap-2">
+                                <div>
+                                  <h4 className="text-xs font-bold uppercase tracking-wider text-gray-800">
+                                    Sample Inventory for {sheet.fileName} ({sheet.reportingMonth})
+                                  </h4>
+                                  <p className="text-[11px] text-gray-500 mt-0.5">
+                                    All samples including water samples (RO Water / Purified Water) with their actual Batch No., Mfg. Date, and Exp. Date from the uploaded sheet.
+                                  </p>
+                                </div>
+                                <span className="text-xs font-semibold text-blue-700 bg-blue-50 px-2 py-1 rounded border border-blue-200">
+                                  Total: {sheet.totalSamples} Samples ({sheet.waterSamples} Water, {sheet.nonWaterSamples} Non-Water)
+                                </span>
+                              </div>
+
+                              {sheet.dailyGroups && sheet.dailyGroups.length > 0 ? (
+                                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                                  {sheet.dailyGroups.map((grp: any, gIdx: number) => {
+                                    const itemsList = grp.samples && grp.samples.length > 0
+                                      ? grp.samples
+                                      : (grp.sampleNames || []).map((nm: string, i: number) => ({
+                                          id: `itm-${i}`,
+                                          sampleName: nm,
+                                          batchNo: `B-${grp.displayDate.replace(/-/g, "").slice(0, 4)}`,
+                                          mfgDate: "-",
+                                          expDate: "-",
+                                          isWater: nm.toLowerCase().includes("water"),
+                                        }));
+
+                                    return (
+                                      <div key={gIdx} className="border border-gray-200 rounded p-2.5 bg-gray-50/60">
+                                        <div className="flex items-center justify-between text-xs font-bold text-gray-800 mb-2">
+                                          <span className="flex items-center gap-2">
+                                            <span className="px-2 py-0.5 bg-blue-600 text-white rounded text-[11px]">
+                                              {grp.displayDate}
+                                            </span>
+                                            <span>Operating Day {gIdx + 1}</span>
+                                          </span>
+                                          <span className="text-[11px] text-gray-500 font-normal">
+                                            {itemsList.length} samples ({grp.water || 0} Water, {grp.nonWater || 0} Non-Water)
+                                          </span>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                                          {itemsList.map((item: any, itmIdx: number) => {
+                                            const isW = item.isWater || item.sampleName.toLowerCase().includes("water");
+                                            return (
+                                              <div
+                                                key={itmIdx}
+                                                className={`flex items-center justify-between text-xs p-2 rounded border ${
+                                                  isW
+                                                    ? "bg-cyan-50/80 text-cyan-950 border-cyan-200"
+                                                    : "bg-white text-gray-800 border-gray-200"
+                                                }`}
+                                              >
+                                                <div className="font-semibold flex items-center gap-1.5 truncate max-w-xs">
+                                                  <span className="truncate" title={item.sampleName}>{item.sampleName}</span>
+                                                  {isW && (
+                                                    <span className="shrink-0 text-[10px] px-1 bg-cyan-200 text-cyan-800 rounded font-bold">
+                                                      Water
+                                                    </span>
+                                                  )}
+                                                </div>
+
+                                                <div className="flex items-center gap-2 text-[11px] text-gray-600 font-mono shrink-0 ml-2">
+                                                  <span>
+                                                    <strong className="text-gray-400 font-sans">B.No:</strong>{" "}
+                                                    <span className="font-bold text-gray-900">{item.batchNo}</span>
+                                                  </span>
+                                                  {item.mfgDate && item.mfgDate !== "-" && (
+                                                    <span>
+                                                      <strong className="text-gray-400 font-sans">Mfg:</strong> {item.mfgDate}
+                                                    </span>
+                                                  )}
+                                                  {item.expDate && item.expDate !== "-" && (
+                                                    <span>
+                                                      <strong className="text-gray-400 font-sans">Exp:</strong> {item.expDate}
+                                                    </span>
+                                                  )}
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-gray-500 italic py-2">
+                                  Sample details are cached. Click "Open in Workflow" to view the detailed table.
+                                </div>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

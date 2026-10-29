@@ -3,6 +3,16 @@ import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { apiFetch } from "../lib/api";
 
+export interface ParsedSampleItem {
+  id: string;
+  sampleName: string;
+  batchNo: string;
+  mfgDate: string;
+  expDate: string;
+  isWater: boolean;
+  rawDate: string;
+}
+
 export interface DailySampleGroup {
   date: string; // YYYY-MM-DD or DD-MM-YYYY
   displayDate: string;
@@ -10,6 +20,7 @@ export interface DailySampleGroup {
   water: number; // W
   nonWater: number; // N
   sampleNames: string[];
+  samples?: ParsedSampleItem[];
 }
 
 interface ImportSummary {
@@ -92,6 +103,9 @@ export const ExcelUploadPage: React.FC = () => {
       const sampleKeys = ["sample name", "samplename", "name of sample", "product", "material"];
       const dateKeys = ["test request date", "date", "registration date", "request date", "received date", "sampling date"];
       const idKeys = ["ar number", "ar no", "sample id", "arnumber", "identifier", "sample identifier"];
+      const batchKeys = ["batch number", "batch no", "b.no", "batch", "bno", "lot number", "lot no"];
+      const mfgKeys = ["mfg date", "mfg. date", "mfg", "manufacturing date", "date of mfg", "date of manufacturing"];
+      const expKeys = ["exp date", "exp. date", "exp", "expiry date", "date of expiry", "expiration date"];
 
       const allRowKeys = Object.keys(rawRows[0] || {});
       const findKey = (candidates: string[]): string | undefined => {
@@ -104,15 +118,30 @@ export const ExcelUploadPage: React.FC = () => {
       const sampleNameKey = findKey(sampleKeys) || "Sample Name";
       const dateKey = findKey(dateKeys) || "Test Request Date";
       const idKey = findKey(idKeys) || "AR Number";
+      const batchKey = findKey(batchKeys);
+      const mfgKey = findKey(mfgKeys);
+      const expKey = findKey(expKeys);
 
       // Group samples date-wise
-      const dateMap = new Map<string, { displayDate: string; sampleNames: string[]; waterCount: number; nonWaterCount: number }>();
+      const dateMap = new Map<
+        string,
+        {
+          displayDate: string;
+          sampleNames: string[];
+          samples: ParsedSampleItem[];
+          waterCount: number;
+          nonWaterCount: number;
+        }
+      >();
       let validCount = 0;
 
       for (const row of rawRows) {
         const rawDate = row[dateKey];
         const rawName = String(row[sampleNameKey] || "").trim();
         const rawId = String(row[idKey] || "").trim();
+        const rawBatch = batchKey ? String(row[batchKey] || "").trim() : "";
+        const rawMfg = mfgKey ? row[mfgKey] : "";
+        const rawExp = expKey ? row[expKey] : "";
 
         if (!rawDate && !rawName && !rawId) continue;
 
@@ -131,19 +160,46 @@ export const ExcelUploadPage: React.FC = () => {
         const displayDate = dateObj ? formatDMY(dateObj) : "Undated";
 
         const sampleDisplayName = rawName || rawId || "Unnamed Sample";
-        const isWater = rawName.toLowerCase().includes("water");
+        // Check if sample is water (includes RO water, purified water, water for injection, etc.)
+        const isWater = sampleDisplayName.toLowerCase().includes("water");
+
+        // Format Mfg and Exp dates if present
+        let mfgDateStr = "";
+        if (rawMfg) {
+          const mfgObj = parseExcelDate(rawMfg);
+          mfgDateStr = mfgObj ? formatDMY(mfgObj) : String(rawMfg);
+        }
+
+        let expDateStr = "";
+        if (rawExp) {
+          const expObj = parseExcelDate(rawExp);
+          expDateStr = expObj ? formatDMY(expObj) : String(rawExp);
+        }
+
+        const sampleItem: ParsedSampleItem = {
+          id: rawId || `item-${validCount}`,
+          sampleName: sampleDisplayName,
+          batchNo: rawBatch || rawId || `B-${displayDate.replace(/-/g, "").slice(0, 4)}`,
+          mfgDate: mfgDateStr || "-",
+          expDate: expDateStr || "-",
+          isWater,
+          rawDate: displayDate,
+        };
 
         if (!dateMap.has(isoDateKey)) {
           dateMap.set(isoDateKey, {
             displayDate,
             sampleNames: [],
+            samples: [],
             waterCount: 0,
             nonWaterCount: 0,
           });
         }
 
         const group = dateMap.get(isoDateKey)!;
+        // Do NOT remove water named samples (e.g. RO water, Purified water) - add to sampleNames and count
         group.sampleNames.push(sampleDisplayName);
+        group.samples.push(sampleItem);
         if (isWater) {
           group.waterCount++;
         } else {
@@ -162,6 +218,7 @@ export const ExcelUploadPage: React.FC = () => {
           water: data.waterCount,
           nonWater: data.nonWaterCount,
           sampleNames: data.sampleNames,
+          samples: data.samples,
         }));
 
       setAnalyzedDaily(sortedDates);
@@ -435,13 +492,13 @@ export const ExcelUploadPage: React.FC = () => {
                       Total Samples (S)
                     </th>
                     <th className="px-6 py-3 text-left font-semibold text-gray-600">
-                      Sample Names Per Day
+                      Sample Details (Sample Name, Batch No, Mfg & Exp Date)
                     </th>
-                    <th className="px-4 py-3 text-center font-semibold text-emerald-700 w-32">
-                      Water Samples (W)
+                    <th className="px-4 py-3 text-center font-semibold text-emerald-700 w-28">
+                      Water (W)
                     </th>
-                    <th className="px-4 py-3 text-center font-semibold text-amber-700 w-32">
-                      Non-Water Samples (N)
+                    <th className="px-4 py-3 text-center font-semibold text-amber-700 w-28">
+                      Non-Water (N)
                     </th>
                     <th className="px-6 py-3 text-right font-semibold text-gray-600 w-36">
                       Action
@@ -451,11 +508,23 @@ export const ExcelUploadPage: React.FC = () => {
                 <tbody className="divide-y divide-gray-100 bg-white">
                   {filteredDaily.map((row) => {
                     const isExpanded = expandedDate === row.date;
-                    const previewNames = row.sampleNames.slice(0, 3);
-                    const remainingCount = row.sampleNames.length - 3;
+                    const samplesList = row.samples && row.samples.length > 0
+                      ? row.samples
+                      : row.sampleNames.map((n, i) => ({
+                          id: `sm-${i}`,
+                          sampleName: n,
+                          batchNo: `B-${row.displayDate.slice(0, 2)}${row.displayDate.slice(3, 5)}`,
+                          mfgDate: "-",
+                          expDate: "-",
+                          isWater: n.toLowerCase().includes("water"),
+                          rawDate: row.displayDate,
+                        }));
+
+                    const previewItems = samplesList.slice(0, 4);
+                    const remainingCount = samplesList.length - 4;
 
                     return (
-                      <tr key={row.date} className="hover:bg-blue-50/30 transition">
+                      <tr key={row.date} className="hover:bg-blue-50/30 transition align-top">
                         <td className="px-6 py-4 font-bold text-gray-900 whitespace-nowrap">
                           {row.displayDate}
                         </td>
@@ -467,26 +536,45 @@ export const ExcelUploadPage: React.FC = () => {
                         </td>
 
                         <td className="px-6 py-4">
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap gap-1.5">
-                              {(isExpanded ? row.sampleNames : previewNames).map((name, i) => {
-                                const isW = name.toLowerCase().includes("water");
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-1 gap-1.5">
+                              {(isExpanded ? samplesList : previewItems).map((item, i) => {
+                                const isW = item.isWater || item.sampleName.toLowerCase().includes("water");
                                 return (
-                                  <span
+                                  <div
                                     key={i}
-                                    className={`inline-flex items-center text-xs px-2 py-0.5 rounded border ${
+                                    className={`flex flex-wrap items-center justify-between text-xs p-1.5 rounded border ${
                                       isW
-                                        ? "bg-blue-50 text-blue-700 border-blue-200 font-medium"
-                                        : "bg-gray-50 text-gray-700 border-gray-200"
+                                        ? "bg-cyan-50/70 text-cyan-900 border-cyan-200"
+                                        : "bg-slate-50 text-slate-800 border-slate-200"
                                     }`}
                                   >
-                                    {name}
-                                    {isW && (
-                                      <span className="ml-1 text-[10px] text-blue-500 font-bold" title="Water Sample">
-                                        (W)
+                                    <div className="font-semibold flex items-center gap-1.5">
+                                      <span>{item.sampleName}</span>
+                                      {isW && (
+                                        <span className="text-[10px] px-1 py-0.2 bg-cyan-200 text-cyan-800 rounded font-bold">
+                                          Water Sample
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="flex items-center gap-3 text-[11px] text-gray-600 mt-1 sm:mt-0 font-mono">
+                                      <span>
+                                        <strong className="text-gray-500 font-sans">B.No:</strong>{" "}
+                                        <span className="font-semibold text-gray-800">{item.batchNo}</span>
                                       </span>
-                                    )}
-                                  </span>
+                                      {item.mfgDate && item.mfgDate !== "-" && (
+                                        <span>
+                                          <strong className="text-gray-500 font-sans">Mfg:</strong> {item.mfgDate}
+                                        </span>
+                                      )}
+                                      {item.expDate && item.expDate !== "-" && (
+                                        <span>
+                                          <strong className="text-gray-500 font-sans">Exp:</strong> {item.expDate}
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
                                 );
                               })}
                             </div>
@@ -496,7 +584,7 @@ export const ExcelUploadPage: React.FC = () => {
                                 onClick={() => setExpandedDate(isExpanded ? null : row.date)}
                                 className="text-[11px] text-blue-600 hover:text-blue-800 font-medium cursor-pointer"
                               >
-                                {isExpanded ? "Show fewer samples ▲" : `+${remainingCount} more samples ▼`}
+                                {isExpanded ? "Show fewer samples ▲" : `+${remainingCount} more samples (with Batch, Mfg & Exp) ▼`}
                               </button>
                             )}
                           </div>
