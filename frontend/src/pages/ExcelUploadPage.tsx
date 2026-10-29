@@ -100,12 +100,18 @@ export const ExcelUploadPage: React.FC = () => {
       }
 
       // Detect header columns dynamically
-      const sampleKeys = ["sample name", "samplename", "name of sample", "product", "material"];
-      const dateKeys = ["test request date", "date", "registration date", "request date", "received date", "sampling date"];
-      const idKeys = ["ar number", "ar no", "sample id", "arnumber", "identifier", "sample identifier"];
-      const batchKeys = ["batch number", "batch no", "b.no", "batch", "bno", "lot number", "lot no", "b. no", "b. no."];
-      const mfgKeys = ["mfg date", "mfg. date", "mfg", "manufacturing date", "date of mfg", "date of manufacturing", "mfg dt", "mfg. dt"];
-      const expKeys = ["exp date", "exp. date", "exp", "expiry date", "date of expiry", "expiration date", "exp dt", "exp. dt"];
+      const sampleKeys = ["sample name", "samplename", "name of sample", "product", "material", "name of product", "item name", "sample"];
+      const dateKeys = ["test request date", "date", "registration date", "request date", "received date", "sampling date", "dt", "testing date"];
+      const idKeys = ["ar number", "ar no", "sample id", "arnumber", "identifier", "sample identifier", "ar. no", "ar. no.", "arno"];
+      const batchKeys = [
+        "batch number", "batch no", "b.no", "batch", "bno", "lot number", "lot no", "b. no", "b. no.", "b/no", "b.number", "b no", "batch#"
+      ];
+      const mfgKeys = [
+        "mfg date", "mfg. date", "mfg", "manufacturing date", "date of mfg", "date of manufacturing", "mfg dt", "mfg. dt", "mfg_date", "mfg/date", "dom"
+      ];
+      const expKeys = [
+        "exp date", "exp. date", "exp", "expiry date", "date of expiry", "expiration date", "exp dt", "exp. dt", "exp_date", "exp/date", "doe"
+      ];
 
       const allRowKeys = Object.keys(rawRows[0] || {});
       const findKey = (candidates: string[]): string | undefined => {
@@ -179,7 +185,7 @@ export const ExcelUploadPage: React.FC = () => {
         const sampleItem: ParsedSampleItem = {
           id: rawId || `item-${validCount}`,
           sampleName: sampleDisplayName,
-          batchNo: rawBatch || rawId || `B-${displayDate.replace(/-/g, "").slice(0, 4)}`,
+          batchNo: rawBatch || rawId || "-",
           mfgDate: mfgDateStr || "-",
           expDate: expDateStr || "-",
           isWater,
