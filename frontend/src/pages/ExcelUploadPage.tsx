@@ -93,32 +93,58 @@ export const ExcelUploadPage: React.FC = () => {
         throw new Error("The Excel file has no worksheets.");
       }
       const worksheet = workbook.Sheets[firstSheetName];
-      const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-      if (rawRows.length === 0) {
+      // Convert 2D sheet to array of arrays to find header row if not row 0
+      const sheetAOA: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+      if (sheetAOA.length === 0) {
         throw new Error("The selected Excel sheet contains no rows.");
       }
 
+      // Search for the header row index (some sheets have title rows on rows 0, 1, 2)
+      let headerRowIndex = 0;
+      for (let r = 0; r < Math.min(sheetAOA.length, 10); r++) {
+        const rowValues = sheetAOA[r].map((c) => String(c || "").toLowerCase().trim());
+        const hasDate = rowValues.some((v) => v.includes("date") || v.includes("dt"));
+        const hasSample = rowValues.some((v) => v.includes("sample") || v.includes("product") || v.includes("material") || v.includes("item"));
+        const hasBatch = rowValues.some((v) => v.includes("batch") || v.includes("b.no") || v.includes("b. no") || v.includes("b/no") || v.includes("lot"));
+        if ((hasDate && hasSample) || (hasSample && hasBatch)) {
+          headerRowIndex = r;
+          break;
+        }
+      }
+
+      const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { range: headerRowIndex, defval: "" });
+
+      if (rawRows.length === 0) {
+        throw new Error("The selected Excel sheet contains no data rows.");
+      }
+
       // Detect header columns dynamically
-      const sampleKeys = ["sample name", "samplename", "name of sample", "product", "material", "name of product", "item name", "sample"];
-      const dateKeys = ["test request date", "date", "registration date", "request date", "received date", "sampling date", "dt", "testing date"];
-      const idKeys = ["ar number", "ar no", "sample id", "arnumber", "identifier", "sample identifier", "ar. no", "ar. no.", "arno"];
+      const sampleKeys = ["sample name", "samplename", "name of sample", "product", "material", "name of product", "item name", "sample", "particulars", "description"];
+      const dateKeys = ["test request date", "date", "registration date", "request date", "received date", "sampling date", "dt", "testing date", "rec date", "received on", "tested on"];
+      const idKeys = ["ar number", "ar no", "sample id", "arnumber", "identifier", "sample identifier", "ar. no", "ar. no.", "arno", "sr no", "sr. no", "s.no"];
       const batchKeys = [
-        "batch number", "batch no", "b.no", "batch", "bno", "lot number", "lot no", "b. no", "b. no.", "b/no", "b.number", "b no", "batch#"
+        "batch number", "batch no", "b.no", "batch", "bno", "lot number", "lot no", "b. no", "b. no.", "b/no", "b.number", "b no", "batch#", "batch/lot", "lot/batch"
       ];
       const mfgKeys = [
-        "mfg date", "mfg. date", "mfg", "manufacturing date", "date of mfg", "date of manufacturing", "mfg dt", "mfg. dt", "mfg_date", "mfg/date", "dom"
+        "mfg date", "mfg. date", "mfg", "manufacturing date", "date of mfg", "date of manufacturing", "mfg dt", "mfg. dt", "mfg_date", "mfg/date", "dom", "d.o.m"
       ];
       const expKeys = [
-        "exp date", "exp. date", "exp", "expiry date", "date of expiry", "expiration date", "exp dt", "exp. dt", "exp_date", "exp/date", "doe"
+        "exp date", "exp. date", "exp", "expiry date", "date of expiry", "expiration date", "exp dt", "exp. dt", "exp_date", "exp/date", "doe", "d.o.e"
       ];
 
       const allRowKeys = Object.keys(rawRows[0] || {});
       const findKey = (candidates: string[]): string | undefined => {
-        return allRowKeys.find((k) => {
-          const lower = k.toLowerCase().trim();
-          return candidates.some((c) => lower === c || lower.includes(c));
-        });
+        // 1. Exact match
+        for (const k of allRowKeys) {
+          const lower = k.toLowerCase().replace(/[\r\n\t_]/g, " ").replace(/\s+/g, " ").trim();
+          if (candidates.some((c) => lower === c)) return k;
+        }
+        // 2. Substring match
+        for (const k of allRowKeys) {
+          const lower = k.toLowerCase().replace(/[\r\n\t_]/g, " ").replace(/\s+/g, " ").trim();
+          if (candidates.some((c) => lower.includes(c) || c.includes(lower))) return k;
+        }
+        return undefined;
       };
 
       const sampleNameKey = findKey(sampleKeys) || "Sample Name";
@@ -185,7 +211,7 @@ export const ExcelUploadPage: React.FC = () => {
         const sampleItem: ParsedSampleItem = {
           id: rawId || `item-${validCount}`,
           sampleName: sampleDisplayName,
-          batchNo: rawBatch || rawId || "-",
+          batchNo: rawBatch || "-",
           mfgDate: mfgDateStr || "-",
           expDate: expDateStr || "-",
           isWater,
